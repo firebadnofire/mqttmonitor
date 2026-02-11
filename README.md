@@ -1,5 +1,7 @@
 # MQTT Monitor
 
+<img src="assets/icon.svg" style="width:50%;">
+
 ## Overview
 
 MQTT Monitor is an Android MQTT client focused on message monitoring and notification delivery from user-managed brokers.
@@ -157,7 +159,7 @@ Run standard local validation:
 
 ## Known Constraints
 
-- Background message delivery is best-effort and platform-dependent.
+- Background message delivery is best-effort and platform-dependent. It may require [disabling battery optimizations](https://dontkillmyapp.com/).
 - Foreground mode still depends on network availability and broker uptime.
 - Existing notification channel preferences may persist across reinstalls depending on device behavior.
 
