@@ -41,7 +41,7 @@ It helps you keep an eye on topics, receive alerts, and decide how persistent th
 <details>
 <summary>Dashboard</summary>
 
-![Dashboard Placeholder](docs/images/dashboard-placeholder.png)
+![Dashboard Placeholder](/assets/home.png)
 
 </details>
 
