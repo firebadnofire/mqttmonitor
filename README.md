@@ -1,130 +1,120 @@
 # MQTT Monitor
 
-A friendly MQTT notification app for people who run their own broker.
+## Overview
 
-## Play Store Style Description
+MQTT Monitor is an Android MQTT client focused on message monitoring and notification delivery from user-managed brokers.
 
-### What it is
+- Application ID: `org.archuser.mqttnotify`
+- Language: Kotlin
+- UI: Jetpack Compose
+- Min SDK: 26
+- Target/Compile SDK: 36
 
-MQTT Monitor is designed for self-hosters, homelab users, and developers who want direct broker monitoring on Android without confusing background behavior, as well as people who want a self-hostable alternative to FCM or tools like [ntfy.sh](https://ntfy.sh).
+## Functional Scope
 
-It helps you keep an eye on topics, receive alerts, and decide how persistent the connection should be based on how you use your phone.
+- Broker management (create, edit, delete, activate/deactivate)
+- Broker validation (connection test required before save)
+- MQTT protocol support: 3.1.1 and 5.0
+- Optional TLS and username/password authentication
+- Topic subscription management (QoS, per-topic notifications, retained-as-new behavior)
+- Local message persistence and per-topic counters
+- Per-message deletion and unread reset by topic
+- Global notification mute with duration selection
+- Material You enable/disable setting
+- Diagnostics/event log view
 
-### What you can do
+## Connection Modes
 
-- Connect to your own MQTT broker
-- Save multiple brokers and switch quickly
-- Test a broker connection before saving it
-- Subscribe to topics and enable per-topic alerts
-- View retained-message status clearly
-- Read and manage messages in a local feed
-- Delete individual messages
-- Use temporary global mute with selectable durations
-- Enable or disable Material You styling
+### Active While Visible (`VISIBLE_ONLY`)
 
-### Two clear connection modes
+- MQTT connection is maintained while UI is visible.
+- Connection is dropped when app is backgrounded.
 
-- **Active While Visible (default):** Connects only while app is on screen
-- **Persistent Foreground Service (optional):** Keeps connection running with a persistent notification
+### Persistent Foreground (`PERSISTENT_FOREGROUND`)
 
-### Why people like it
+- MQTT connection is maintained by a foreground service.
+- Persistent notification is required while active.
 
-- Clear connection model
-- Local-first message history
-- Strong control over notifications
-- Works well for homelab and debugging workflows
+## Notification Behavior
 
-## Screenshots (Placeholders)
+- Message alerts use a dedicated high-importance channel.
+- Foreground service status uses a separate low-importance channel.
+- Global mute affects notifications only; ingestion and storage continue.
+- Android system notification settings remain authoritative for final alert behavior.
 
-> Replace these placeholder paths with real screenshots when available.
+## UI Reference Screenshots
+
+The following screenshots document the current UI flows and states.
 
 <details>
 <summary>Dashboard</summary>
 
-![Dashboard Placeholder](/assets/home.png)
+![Dashboard](assets/home.png)
 
 </details>
 
 <details>
-<summary>Brokers</summary>
+<summary>Broker List</summary>
 
-![Brokers Placeholder](docs/images/brokers-placeholder.png)
+![Broker List](assets/brokers.png)
 
 </details>
 
 <details>
 <summary>Broker Editor</summary>
 
-![Broker Editor Placeholder](docs/images/broker-edit-placeholder.png)
+![Broker Editor](assets/editor.png)
 
 </details>
 
 <details>
-<summary>Topics</summary>
+<summary>Topic Configuration</summary>
 
-![Topics Placeholder](docs/images/topics-placeholder.png)
+![Topic Configuration](assets/topics.png)
 
 </details>
 
 <details>
 <summary>Message Feed</summary>
 
-![Message Feed Placeholder](docs/images/messages-placeholder.png)
+![Message Feed](assets/message_feed.png)
 
 </details>
 
 <details>
 <summary>Settings</summary>
 
-![Settings Placeholder](docs/images/settings-placeholder.png)
+![Settings](assets/settings.png)
 
 </details>
 
 <details>
-<summary>Diagnostics</summary>
+<summary>Notifications</summary>
 
-![Diagnostics Placeholder](docs/images/diagnostics-placeholder.png)
-
-</details>
-
-<details>
-<summary>Notification Banner + Persistent Notification</summary>
-
-![Notification Placeholder](docs/images/notifications-placeholder.png)
+![Notifications](assets/notifications.png)
 
 </details>
 
----
+## Architecture
 
-## Technical Specification
+Main source root: `app/src/main/java/org/archuser/mqttnotify/`
 
-### App ID and platform
+- `core/`: utility abstractions (time, dispatchers, topic matching)
+- `connection/`: connection coordinator/state logic
+- `data/local/`: Room entities, DAO interfaces, database
+- `data/mqtt/`: MQTT adapter and connection test implementation
+- `data/repo/`: repository implementations
+- `data/security/`: encrypted credential storage
+- `domain/model/`: app domain models
+- `domain/repo/`: repository contracts
+- `notifications/`: notification channels and dispatch
+- `service/`: persistent foreground service
+- `ui/navigation/`: Compose navigation graph
+- `ui/screen/`: Compose screen components
+- `ui/viewmodel/`: state/view logic
+- `di/`: Hilt module bindings
 
-- Application ID: `org.archuser.mqttnotify`
-- Android min SDK: `26`
-- Android target/compile SDK: `36`
-
-### Core stack
-
-- Kotlin + Jetpack Compose
-- Hilt (dependency injection)
-- Room (local persistence)
-- HiveMQ MQTT client
-- AndroidX Security Crypto (credential storage)
-
-### Feature set
-
-- MQTT 3.1.1 and MQTT 5.0 support
-- Multiple saved brokers
-- Single active broker connection at a time
-- TLS/auth-capable broker config
-- Required broker connection test before save
-- Per-topic subscriptions and notification settings
-- Global mute (notifications only)
-- Retained-message handling controls
-- Foreground service mode with persistent notification
-
-### Data model
+## Persistence Model
 
 Room tables:
 
@@ -135,56 +125,48 @@ Room tables:
 - `retention_policies`
 - `app_state`
 
-### Project layout
+## Android Permissions
 
-Main source path: `app/src/main/java/org/archuser/mqttnotify/`
+Declared in `app/src/main/AndroidManifest.xml`:
 
-- `core/`
-- `data/local/`
-- `data/mqtt/`
-- `data/repo/`
-- `data/security/`
-- `domain/model/`
-- `domain/repo/`
-- `connection/`
-- `notifications/`
-- `service/`
-- `ui/`
-- `di/`
+- `android.permission.INTERNET`
+- `android.permission.ACCESS_NETWORK_STATE`
+- `android.permission.POST_NOTIFICATIONS`
+- `android.permission.FOREGROUND_SERVICE`
+- `android.permission.FOREGROUND_SERVICE_DATA_SYNC`
 
-### Permissions
+## Build and Test
 
-Defined in `app/src/main/AndroidManifest.xml`:
-
-- `INTERNET`
-- `ACCESS_NETWORK_STATE`
-- `POST_NOTIFICATIONS`
-- `FOREGROUND_SERVICE`
-- `FOREGROUND_SERVICE_DATA_SYNC`
-
-### Build
+Build debug APK:
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-### Tests
+Run unit tests:
 
 ```bash
 ./gradlew :app:testDebugUnitTest
 ```
 
-### Combined validation command
+Run standard local validation:
 
 ```bash
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-### Notes
+## Known Constraints
 
-- Background delivery is best-effort, not guaranteed.
-- Notification channel behavior is ultimately user-controlled by Android system settings.
+- Background message delivery is best-effort and platform-dependent.
+- Foreground mode still depends on network availability and broker uptime.
+- Existing notification channel preferences may persist across reinstalls depending on device behavior.
 
-## License
+## Legal
 
-License not yet defined.
+Copyright (C) 2026 firebadnofire
+
+This project is licensed under the GNU General Public License v3.0.
+
+- SPDX license identifier: `GPL-3.0-only`
+- Full license text: [`LICENSE`](LICENSE)
+- Warranty disclaimer: provided by GPLv3 terms; software is distributed without warranty.
