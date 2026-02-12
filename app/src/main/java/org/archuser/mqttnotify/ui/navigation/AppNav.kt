@@ -229,9 +229,17 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                 val messages by vm.messages.collectAsStateWithLifecycle()
                 MessageFeedScreen(
                     messages = messages,
-                    onResetUnread = {
-                        vm.resetUnread(it)
-                        toast("Unread count reset for $it")
+                    onReadAll = {
+                        vm.markAllRead()
+                        toast("All messages marked as read")
+                    },
+                    onMarkMessageRead = {
+                        vm.markMessageRead(it)
+                        toast("Message marked as read")
+                    },
+                    onMarkMessageUnread = {
+                        vm.markMessageUnread(it)
+                        toast("Message marked as unread")
                     },
                     onDeleteMessage = {
                         vm.deleteMessage(it)

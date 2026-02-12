@@ -57,7 +57,8 @@ class MessageRepositoryImpl @Inject constructor(
             retained = event.retained,
             duplicate = event.duplicate,
             packetId = event.packetId,
-            isNewActivity = isNewActivity
+            isNewActivity = isNewActivity,
+            isUnread = isNewActivity
         )
 
         val insertedId = messageDao.insert(entity)
@@ -86,7 +87,27 @@ class MessageRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetUnreadForTopic(brokerId: Long, topic: String) = withContext(dispatchers.io) {
+        messageDao.markAllReadForTopic(brokerId, topic)
         topicCounterDao.resetUnreadForTopic(brokerId, topic)
+    }
+
+    override suspend fun resetUnreadForBroker(brokerId: Long) = withContext(dispatchers.io) {
+        messageDao.markAllReadForBroker(brokerId)
+        topicCounterDao.resetUnreadForBroker(brokerId)
+    }
+
+    override suspend fun markMessageRead(messageId: Long) = withContext(dispatchers.io) {
+        val message = messageDao.getById(messageId) ?: return@withContext
+        if (!message.isUnread) return@withContext
+        messageDao.markReadById(messageId)
+        topicCounterDao.decrementUnreadForTopic(message.brokerId, message.topicFilter)
+    }
+
+    override suspend fun markMessageUnread(messageId: Long) = withContext(dispatchers.io) {
+        val message = messageDao.getById(messageId) ?: return@withContext
+        if (message.isUnread) return@withContext
+        messageDao.markUnreadById(messageId)
+        topicCounterDao.incrementUnreadForTopic(message.brokerId, message.topicFilter)
     }
 
     override suspend fun unreadCountForBroker(brokerId: Long): Int = withContext(dispatchers.io) {
@@ -94,7 +115,13 @@ class MessageRepositoryImpl @Inject constructor(
     }
 
     override suspend fun deleteMessage(messageId: Long) = withContext(dispatchers.io) {
+        val message = messageDao.getById(messageId) ?: return@withContext
         messageDao.deleteById(messageId)
+        topicCounterDao.decrementCountsForDeletedMessage(
+            brokerId = message.brokerId,
+            topic = message.topicFilter,
+            unreadDelta = if (message.isUnread) 1 else 0
+        )
     }
 
     private companion object {

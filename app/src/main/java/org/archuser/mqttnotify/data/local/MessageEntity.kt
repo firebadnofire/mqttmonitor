@@ -29,5 +29,6 @@ data class MessageEntity(
     val retained: Boolean,
     val duplicate: Boolean,
     @ColumnInfo(name = "packet_id") val packetId: Int?,
-    @ColumnInfo(name = "is_new_activity") val isNewActivity: Boolean
+    @ColumnInfo(name = "is_new_activity") val isNewActivity: Boolean,
+    @ColumnInfo(name = "is_unread") val isUnread: Boolean
 )

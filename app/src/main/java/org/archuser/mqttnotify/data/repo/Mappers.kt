@@ -77,7 +77,8 @@ fun MessageEntity.toModel(): InboundMessageRecord = InboundMessageRecord(
     retained = retained,
     duplicate = duplicate,
     packetId = packetId,
-    isNewActivity = isNewActivity
+    isNewActivity = isNewActivity,
+    isUnread = isUnread
 )
 
 fun RetentionPolicyEntity.toModel(): RetentionPolicy = RetentionPolicy(

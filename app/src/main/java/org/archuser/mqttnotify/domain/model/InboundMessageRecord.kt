@@ -11,5 +11,6 @@ data class InboundMessageRecord(
     val retained: Boolean,
     val duplicate: Boolean,
     val packetId: Int?,
-    val isNewActivity: Boolean
+    val isNewActivity: Boolean,
+    val isUnread: Boolean
 )

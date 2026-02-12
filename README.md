@@ -7,6 +7,7 @@
 MQTT Monitor is an Android MQTT client focused on message monitoring and notification delivery from user-managed brokers.
 
 - Application ID: `org.archuser.mqttnotify`
+- Current Version: `1.1.0` (versionCode `3`)
 - Language: Kotlin
 - UI: Jetpack Compose
 - Min SDK: 26
@@ -20,7 +21,9 @@ MQTT Monitor is an Android MQTT client focused on message monitoring and notific
 - Optional TLS and username/password authentication
 - Topic subscription management (QoS, per-topic notifications, retained-as-new behavior)
 - Local message persistence and per-topic counters
-- Per-message deletion and unread reset by topic
+- Per-message read/unread state and per-message deletion
+- Message Feed controls for `Read all`, `Mark read`, and `Mark unread`
+- Unread messages indicated with a dot marker on the message card
 - Global notification mute with duration selection
 - Material You enable/disable setting
 - Diagnostics/event log view

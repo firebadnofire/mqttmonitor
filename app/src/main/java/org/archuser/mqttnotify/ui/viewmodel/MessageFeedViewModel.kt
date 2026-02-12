@@ -31,9 +31,21 @@ class MessageFeedViewModel @Inject constructor(
         }
     }
 
-    fun resetUnread(topic: String) {
+    fun markMessageRead(messageId: Long) {
         viewModelScope.launch {
-            messageRepository.resetUnreadForTopic(brokerId, topic)
+            messageRepository.markMessageRead(messageId)
+        }
+    }
+
+    fun markAllRead() {
+        viewModelScope.launch {
+            messageRepository.resetUnreadForBroker(brokerId)
+        }
+    }
+
+    fun markMessageUnread(messageId: Long) {
+        viewModelScope.launch {
+            messageRepository.markMessageUnread(messageId)
         }
     }
 
