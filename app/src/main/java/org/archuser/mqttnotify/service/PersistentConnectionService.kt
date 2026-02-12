@@ -6,7 +6,6 @@ import android.content.Intent
 import android.os.IBinder
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -15,7 +14,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.archuser.mqttnotify.connection.ConnectionCoordinator
 import org.archuser.mqttnotify.domain.repo.DiagnosticsRepository
 import org.archuser.mqttnotify.notifications.NotificationController
@@ -75,12 +73,6 @@ class PersistentConnectionService : Service() {
 
     override fun onDestroy() {
         updateJob?.cancel()
-        runBlocking {
-            try {
-                coordinator.stopPersistent()
-            } catch (_: CancellationException) {
-            }
-        }
         serviceScope.cancel()
         super.onDestroy()
     }
