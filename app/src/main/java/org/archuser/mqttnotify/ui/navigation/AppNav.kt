@@ -2,6 +2,9 @@ package org.archuser.mqttnotify.ui.navigation
 
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material.DropdownMenu
 import androidx.compose.material.DropdownMenuItem
 import androidx.compose.material.FloatingActionButton
@@ -84,8 +87,10 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
     }
 
     Scaffold(
+        modifier = Modifier.safeDrawingPadding(),
         topBar = {
             TopAppBar(
+                modifier = Modifier.statusBarsPadding(),
                 title = { Text(routeTitle(currentRoute)) },
                 navigationIcon = if (currentRoute != Routes.CHANNELS) {
                     {
@@ -147,13 +152,16 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
         },
         floatingActionButton = {
             if (currentRoute == Routes.CHANNELS) {
-                FloatingActionButton(onClick = {
-                    if (dashboardState.brokers.isEmpty()) {
-                        navController.navigate(Routes.brokerEdit(0L))
-                    } else {
-                        navController.navigate(Routes.channelEdit(0L))
+                FloatingActionButton(
+                    modifier = Modifier.navigationBarsPadding(),
+                    onClick = {
+                        if (dashboardState.brokers.isEmpty()) {
+                            navController.navigate(Routes.brokerEdit(0L))
+                        } else {
+                            navController.navigate(Routes.channelEdit(0L))
+                        }
                     }
-                }) {
+                ) {
                     Icon(Icons.Default.Add, contentDescription = "Add")
                 }
             }
