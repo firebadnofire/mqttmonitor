@@ -16,8 +16,17 @@ class TopicRepositoryImpl @Inject constructor(
     private val dispatchers: DispatchersProvider
 ) : TopicRepository {
 
+    override fun observeChannels(): Flow<List<TopicSubscriptionConfig>> =
+        topicDao.observeAll().map { list -> list.map { it.toModel() } }
+
     override fun observeTopicsForBroker(brokerId: Long): Flow<List<TopicSubscriptionConfig>> =
         topicDao.observeForBroker(brokerId).map { list -> list.map { it.toModel() } }
+
+    override suspend fun getChannel(id: Long): TopicSubscriptionConfig? =
+        withContext(dispatchers.io) { topicDao.getById(id)?.toModel() }
+
+    override suspend fun getEnabledChannels(): List<TopicSubscriptionConfig> =
+        withContext(dispatchers.io) { topicDao.getEnabledAll().map { it.toModel() } }
 
     override suspend fun getEnabledTopicsForBroker(brokerId: Long): List<TopicSubscriptionConfig> =
         withContext(dispatchers.io) { topicDao.getEnabledForBroker(brokerId).map { it.toModel() } }

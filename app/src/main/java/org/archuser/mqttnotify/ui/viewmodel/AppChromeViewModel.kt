@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.archuser.mqttnotify.core.TimeProvider
+import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.domain.repo.AppStateRepository
 
 @HiltViewModel
@@ -19,15 +20,15 @@ class AppChromeViewModel @Inject constructor(
 
     private val _muted = MutableStateFlow(false)
     val muted: StateFlow<Boolean> = _muted.asStateFlow()
-    private val _materialYouEnabled = MutableStateFlow(true)
-    val materialYouEnabled: StateFlow<Boolean> = _materialYouEnabled.asStateFlow()
+    private val _themePreference = MutableStateFlow(ThemePreference.SYSTEM)
+    val themePreference: StateFlow<ThemePreference> = _themePreference.asStateFlow()
 
     init {
         viewModelScope.launch {
             appStateRepository.observeState().collect { state ->
                 val now = timeProvider.nowMillis()
                 _muted.value = state.globalMuteUntil?.let { it > now } ?: false
-                _materialYouEnabled.value = state.materialYouEnabled
+                _themePreference.value = state.themePreference
             }
         }
     }

@@ -14,6 +14,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE broker_id = :brokerId ORDER BY received_at DESC LIMIT 500")
     fun observeForBroker(brokerId: Long): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM messages WHERE topic_filter = :topic ORDER BY received_at DESC LIMIT 500")
+    fun observeForTopic(topic: String): Flow<List<MessageEntity>>
+
     @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
     suspend fun getById(messageId: Long): MessageEntity?
 
@@ -25,6 +28,9 @@ interface MessageDao {
 
     @Query("UPDATE messages SET is_unread = 0 WHERE broker_id = :brokerId")
     suspend fun markAllReadForBroker(brokerId: Long)
+
+    @Query("UPDATE messages SET is_unread = 0 WHERE topic_filter = :topic")
+    suspend fun markAllReadForTopicAcrossBrokers(topic: String)
 
     @Query("UPDATE messages SET is_unread = 0 WHERE broker_id = :brokerId AND topic_filter = :topic")
     suspend fun markAllReadForTopic(brokerId: Long, topic: String)
@@ -44,4 +50,7 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE id = :messageId")
     suspend fun deleteById(messageId: Long)
+
+    @Query("DELETE FROM messages WHERE topic_filter = :topic")
+    suspend fun deleteByTopic(topic: String)
 }

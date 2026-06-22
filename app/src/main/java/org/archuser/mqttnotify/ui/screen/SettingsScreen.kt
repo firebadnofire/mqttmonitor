@@ -5,21 +5,24 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Button
+import androidx.compose.material.Card
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.OutlinedButton
+import androidx.compose.material.RadioButton
+import androidx.compose.material.Switch
+import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.archuser.mqttnotify.domain.model.ConnectionMode
+import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.ui.viewmodel.SettingsUiState
 
 @Composable
@@ -27,88 +30,82 @@ fun SettingsScreen(
     state: SettingsUiState,
     onMuteForMinutes: (Int) -> Unit,
     onClearMute: () -> Unit,
-    onMaterialYouChanged: (Boolean) -> Unit,
-    onOpenDiagnostics: () -> Unit
+    onThemeChanged: (ThemePreference) -> Unit,
+    onPersistentListenerChanged: (Boolean) -> Unit,
+    onOpenServiceStatus: () -> Unit
 ) {
     val formattedMuteUntil = state.muteUntil?.let {
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(it))
     }
-    val muteOptions = listOf(
-        "15 minutes" to 15,
-        "30 minutes" to 30,
-        "1 hour" to 60,
-        "2 hours" to 120,
-        "8 hours" to 480
-    )
-    var expanded by remember { mutableStateOf(false) }
-    var selectedLabel by remember { mutableStateOf(muteOptions.first().first) }
 
-    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Card {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Operating modes")
-                Text(
-                    if (state.connectionMode == ConnectionMode.VISIBLE_ONLY) {
-                        "Active while visible is the default mode. MQTT stays connected only while this UI is on screen."
-                    } else {
-                        "Persistent foreground mode is enabled. The app keeps its MQTT connection only while the ongoing notification remains active."
-                    }
-                )
-                Text(
-                    "Background delivery is best-effort only. Android, network loss, and broker availability can still delay or prevent messages.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
-                )
-            }
+    Column(
+        modifier = Modifier
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        SettingsCard("Appearance") {
+            ThemeOption("Follow system", ThemePreference.SYSTEM, state.themePreference, onThemeChanged)
+            ThemeOption("Light", ThemePreference.LIGHT, state.themePreference, onThemeChanged)
+            ThemeOption("Dark", ThemePreference.DARK, state.themePreference, onThemeChanged)
         }
 
-        Card {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Global notification mute")
-                Text(if (state.muted) "Muted until $formattedMuteUntil" else "Not muted")
-                Button(onClick = { expanded = true }) { Text("Mute duration: $selectedLabel") }
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    muteOptions.forEach { (label, minutes) ->
-                        DropdownMenuItem(
-                            text = { Text(label) },
-                            onClick = {
-                                selectedLabel = label
-                                expanded = false
-                                onMuteForMinutes(minutes)
-                            }
-                        )
-                    }
-                }
-                Text(
-                    "Tip: mute only suppresses notifications. Message ingestion and storage continue.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
-                )
-                Button(onClick = onClearMute) { Text("Clear mute") }
-            }
-        }
-
-        Card {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Material You")
+        SettingsCard("Listener") {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Switch(
-                    checked = state.materialYouEnabled,
-                    onCheckedChange = onMaterialYouChanged
+                    checked = state.connectionMode == ConnectionMode.PERSISTENT_FOREGROUND,
+                    onCheckedChange = onPersistentListenerChanged
                 )
-                Text(
-                    "Tip: uses your wallpaper-derived dynamic colors on Android 12+.",
-                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
-                )
+                Text("Persistent listener")
             }
+            Text(
+                "Keep MQTT Notify running as a foreground service when listening in the background.",
+                style = MaterialTheme.typography.caption
+            )
+            Text("Start listener on app launch: Off")
         }
 
-        Card {
-            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Retention")
-                Text("Messages are stored locally per topic. Retention policies exist, but advanced retention controls remain out of scope for v1.")
+        SettingsCard("Notifications") {
+            Text(if (state.muted) "Global mute active until $formattedMuteUntil" else "Global mute is off")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { onMuteForMinutes(15) }) { Text("MUTE 15 MIN") }
+                OutlinedButton(onClick = onClearMute) { Text("CLEAR") }
             }
+            Text("Mute notifications without stopping message history.", style = MaterialTheme.typography.caption)
         }
 
-        Button(onClick = onOpenDiagnostics) {
-            Text("Open Diagnostics")
+        SettingsCard("History") {
+            Text("Keep history: 30 days")
+            Text("Messages are stored locally inside each channel feed.")
         }
+
+        SettingsCard("Battery") {
+            Text("Battery optimization: Unknown")
+            Text("Android may stop the listener while the phone is idle.", style = MaterialTheme.typography.caption)
+            Button(onClick = onOpenServiceStatus) { Text("OPEN SERVICE STATUS") }
+        }
+    }
+}
+
+@Composable
+private fun SettingsCard(title: String, content: @Composable () -> Unit) {
+    Card(modifier = Modifier.fillMaxWidth(), elevation = 1.dp) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(title, style = MaterialTheme.typography.subtitle1)
+            content()
+        }
+    }
+}
+
+@Composable
+private fun ThemeOption(
+    label: String,
+    value: ThemePreference,
+    selected: ThemePreference,
+    onThemeChanged: (ThemePreference) -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        RadioButton(selected = selected == value, onClick = { onThemeChanged(value) })
+        Text(label)
     }
 }

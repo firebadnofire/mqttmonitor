@@ -1,45 +1,36 @@
 package org.archuser.mqttnotify.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import android.os.Build
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.darkColors
+import androidx.compose.material.lightColors
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import org.archuser.mqttnotify.domain.model.ThemePreference
 
-private val LightColors = lightColorScheme(
-    primary = Blue40,
-    secondary = Teal40,
-    surface = Gray90
+private val LightColors = lightColors(
+    primary = Teal700,
+    primaryVariant = Teal900,
+    secondary = Teal700,
+    error = ErrorRed
 )
 
-private val DarkColors = darkColorScheme(
-    primary = Blue80,
-    secondary = Teal40,
-    surface = Gray20
+private val DarkColors = darkColors(
+    primary = Teal300,
+    primaryVariant = Teal700,
+    secondary = Teal300,
+    error = ErrorRed
 )
 
 @Composable
 fun MqttNotifyTheme(
-    useMaterialYou: Boolean,
+    themePreference: ThemePreference,
     content: @Composable () -> Unit
 ) {
-    val darkTheme = isSystemInDarkTheme()
-    val context = LocalContext.current
-    val colorScheme = when {
-        useMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && darkTheme ->
-            dynamicDarkColorScheme(context)
-        useMaterialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !darkTheme ->
-            dynamicLightColorScheme(context)
-        darkTheme -> DarkColors
-        else -> LightColors
+    val dark = when (themePreference) {
+        ThemePreference.SYSTEM -> isSystemInDarkTheme()
+        ThemePreference.LIGHT -> false
+        ThemePreference.DARK -> true
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = MaterialTheme.typography,
-        content = content
-    )
+    val colors = if (dark) DarkColors else LightColors
+    MaterialTheme(colors = colors, content = content)
 }

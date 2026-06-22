@@ -11,5 +11,5 @@ data class AppStateEntity(
     @ColumnInfo(name = "connection_mode") val connectionMode: String,
     @ColumnInfo(name = "global_mute_until") val globalMuteUntil: Long?,
     @ColumnInfo(name = "last_session_started_at") val lastSessionStartedAt: Long?,
-    @ColumnInfo(name = "material_you_enabled", defaultValue = "1") val materialYouEnabled: Boolean
+    @ColumnInfo(name = "theme_preference", defaultValue = "'SYSTEM'") val themePreference: String
 )

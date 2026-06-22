@@ -9,6 +9,7 @@ import org.archuser.mqttnotify.core.DispatchersProvider
 import org.archuser.mqttnotify.data.local.AppStateDao
 import org.archuser.mqttnotify.domain.model.AppState
 import org.archuser.mqttnotify.domain.model.ConnectionMode
+import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.domain.repo.AppStateRepository
 
 @Singleton
@@ -33,7 +34,7 @@ class AppStateRepositoryImpl @Inject constructor(
 
     override suspend fun setLastSessionStartedAt(time: Long?) = update { it.copy(lastSessionStartedAt = time) }
 
-    override suspend fun setMaterialYouEnabled(enabled: Boolean) = update { it.copy(materialYouEnabled = enabled) }
+    override suspend fun setThemePreference(preference: ThemePreference) = update { it.copy(themePreference = preference) }
 
     private suspend fun update(transform: (AppState) -> AppState) = withContext(dispatchers.io) {
         val next = transform(currentState())
@@ -45,6 +46,6 @@ class AppStateRepositoryImpl @Inject constructor(
         connectionMode = ConnectionMode.VISIBLE_ONLY,
         globalMuteUntil = null,
         lastSessionStartedAt = null,
-        materialYouEnabled = true
+        themePreference = ThemePreference.SYSTEM
     )
 }

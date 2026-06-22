@@ -9,8 +9,17 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface TopicSubscriptionDao {
+    @Query("SELECT * FROM topic_subscriptions ORDER BY id")
+    fun observeAll(): Flow<List<TopicSubscriptionEntity>>
+
     @Query("SELECT * FROM topic_subscriptions WHERE broker_id = :brokerId ORDER BY topic_filter")
     fun observeForBroker(brokerId: Long): Flow<List<TopicSubscriptionEntity>>
+
+    @Query("SELECT * FROM topic_subscriptions WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Long): TopicSubscriptionEntity?
+
+    @Query("SELECT * FROM topic_subscriptions WHERE enabled = 1")
+    suspend fun getEnabledAll(): List<TopicSubscriptionEntity>
 
     @Query("SELECT * FROM topic_subscriptions WHERE broker_id = :brokerId AND enabled = 1")
     suspend fun getEnabledForBroker(brokerId: Long): List<TopicSubscriptionEntity>

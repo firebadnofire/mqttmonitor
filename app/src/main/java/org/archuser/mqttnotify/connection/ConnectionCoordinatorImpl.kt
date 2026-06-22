@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -133,7 +134,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
             ConnectionMode.PERSISTENT_FOREGROUND -> persistentRunning
         }
 
-        val targetBroker = state.activeBrokerId
+        val targetBroker = state.activeBrokerId ?: brokerRepository.observeBrokers().first().firstOrNull()?.id
         if (!shouldConnect || targetBroker == null) {
             disconnectInternal("No active connection target")
             return
@@ -189,7 +190,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
 
         topicWatchJob?.cancel()
         topicWatchJob = scope.launch {
-            topicRepository.observeTopicsForBroker(broker.id).collectLatest { topics ->
+            topicRepository.observeChannels().collectLatest { topics ->
                 syncSubscriptions(topics)
             }
         }

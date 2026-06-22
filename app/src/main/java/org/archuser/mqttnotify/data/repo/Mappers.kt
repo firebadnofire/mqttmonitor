@@ -12,6 +12,7 @@ import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.InboundMessageRecord
 import org.archuser.mqttnotify.domain.model.ProtocolVersion
 import org.archuser.mqttnotify.domain.model.RetentionPolicy
+import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.domain.model.TopicSubscriptionConfig
 
 fun BrokerEntity.toModel(): BrokerConfig = BrokerConfig(
@@ -49,21 +50,25 @@ fun BrokerConfig.toEntity(): BrokerEntity = BrokerEntity(
 fun TopicSubscriptionEntity.toModel(): TopicSubscriptionConfig = TopicSubscriptionConfig(
     id = id,
     brokerId = brokerId,
+    displayName = displayName.ifBlank { topicFilter },
     topicFilter = topicFilter,
     qos = qos,
     enabled = enabled,
     notifyEnabled = notifyEnabled,
-    retainedAsNew = retainedAsNew
+    retainedAsNew = retainedAsNew,
+    hideRetained = hideRetained
 )
 
 fun TopicSubscriptionConfig.toEntity(): TopicSubscriptionEntity = TopicSubscriptionEntity(
     id = id,
     brokerId = brokerId,
+    displayName = displayName.ifBlank { topicFilter },
     topicFilter = topicFilter,
     qos = qos,
     enabled = enabled,
     notifyEnabled = notifyEnabled,
-    retainedAsNew = retainedAsNew
+    retainedAsNew = retainedAsNew,
+    hideRetained = hideRetained
 )
 
 fun MessageEntity.toModel(): InboundMessageRecord = InboundMessageRecord(
@@ -104,7 +109,7 @@ fun AppStateEntity.toModel(): AppState = AppState(
     connectionMode = runCatching { ConnectionMode.valueOf(connectionMode) }.getOrDefault(ConnectionMode.VISIBLE_ONLY),
     globalMuteUntil = globalMuteUntil,
     lastSessionStartedAt = lastSessionStartedAt,
-    materialYouEnabled = materialYouEnabled
+    themePreference = runCatching { ThemePreference.valueOf(themePreference) }.getOrDefault(ThemePreference.SYSTEM)
 )
 
 fun AppState.toEntity(): AppStateEntity = AppStateEntity(
@@ -113,5 +118,5 @@ fun AppState.toEntity(): AppStateEntity = AppStateEntity(
     connectionMode = connectionMode.name,
     globalMuteUntil = globalMuteUntil,
     lastSessionStartedAt = lastSessionStartedAt,
-    materialYouEnabled = materialYouEnabled
+    themePreference = themePreference.name
 )

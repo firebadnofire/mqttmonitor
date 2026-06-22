@@ -33,19 +33,19 @@ class NotificationControllerImpl @Inject constructor(
 
         val serviceChannel = NotificationChannel(
             NotificationIds.CHANNEL_PERSISTENT,
-            "MQTT Foreground Session",
+            "MQTT Notify listener",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Shows the active MQTT foreground session and its live connection state"
+            description = "Shows when MQTT Notify is actively listening in foreground service mode"
             setShowBadge(false)
         }
 
         val messageChannel = NotificationChannel(
             NotificationIds.CHANNEL_MESSAGES,
-            "MQTT Topic Alerts",
+            "MQTT Notify messages",
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
-            description = "Per-topic message notifications with banner pop-on-screen"
+            description = "Message notifications for configured MQTT Notify channels"
             enableVibration(true)
             enableLights(true)
             vibrationPattern = longArrayOf(0, 250, 150, 250)
@@ -72,11 +72,16 @@ class NotificationControllerImpl @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val title = snapshot.brokerLabel?.let { "MQTT Monitor: $it" } ?: "MQTT Monitor"
+        val title = when (snapshot.status) {
+            ConnectionStatus.CONNECTED -> "MQTT Notify is listening"
+            ConnectionStatus.CONNECTING -> "MQTT Notify is connecting"
+            ConnectionStatus.ERROR -> "MQTT Notify has connection errors"
+            ConnectionStatus.DISCONNECTED -> "MQTT Notify listener is stopped"
+        }
         val statusText = when (snapshot.status) {
             ConnectionStatus.CONNECTED -> "Connected"
             ConnectionStatus.CONNECTING -> "Connecting"
-            ConnectionStatus.ERROR -> "Connection issue"
+            ConnectionStatus.ERROR -> snapshot.lastError ?: "Connection issue"
             ConnectionStatus.DISCONNECTED -> "Disconnected"
         }
 
@@ -88,7 +93,8 @@ class NotificationControllerImpl @Inject constructor(
             "%02d:%02d:%02d".format(h, m, s)
         } ?: "00:00:00"
 
-        val content = "Status: $statusText | Connected: $elapsed | Messages: ${snapshot.messageCount}"
+        val broker = snapshot.brokerLabel ?: "No broker"
+        val content = "$broker · $statusText · $elapsed · ${snapshot.messageCount} messages"
 
         return NotificationCompat.Builder(context, NotificationIds.CHANNEL_PERSISTENT)
             .setSmallIcon(R.drawable.ic_stat_mqtt)
@@ -98,8 +104,8 @@ class NotificationControllerImpl @Inject constructor(
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setContentIntent(openIntent)
-            .addAction(0, "Open", openIntent)
-            .addAction(0, "Stop foreground mode", stopIntent)
+            .addAction(0, "OPEN", openIntent)
+            .addAction(0, "STOP", stopIntent)
             .build()
     }
 
@@ -116,12 +122,13 @@ class NotificationControllerImpl @Inject constructor(
         )
 
         val content = if (message.payloadPreview.isBlank()) "<empty payload>" else message.payloadPreview
-        val title = "[$brokerLabel] ${message.topic}"
+        val title = message.topic
 
         val notification = NotificationCompat.Builder(context, NotificationIds.CHANNEL_MESSAGES)
             .setSmallIcon(R.drawable.ic_stat_mqtt)
             .setContentTitle(title)
             .setContentText(content)
+            .setSubText(brokerLabel)
             .setStyle(NotificationCompat.BigTextStyle().bigText(content))
             .setCategory(NotificationCompat.CATEGORY_MESSAGE)
             .setPriority(NotificationCompat.PRIORITY_HIGH)

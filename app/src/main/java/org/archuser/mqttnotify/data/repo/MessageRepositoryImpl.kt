@@ -32,15 +32,35 @@ class MessageRepositoryImpl @Inject constructor(
     override fun observeMessagesForBroker(brokerId: Long): Flow<List<InboundMessageRecord>> =
         messageDao.observeForBroker(brokerId).map { list -> list.map { it.toModel() } }
 
+    override fun observeMessagesForTopic(topic: String): Flow<List<InboundMessageRecord>> =
+        messageDao.observeForTopic(topic).map { list -> list.map { it.toModel() } }
+
     override suspend fun ingestMessage(
         brokerId: Long,
         event: MqttEvent.MessageReceived
     ): InboundMessageRecord = withContext(dispatchers.io) {
-        val matchingConfig = topicDao.getAllForBroker(brokerId)
+        val matchingConfig = topicDao.getEnabledAll()
             .filter { it.enabled && TopicMatcher.matches(it.topicFilter, event.topic) }
             .maxByOrNull { it.topicFilter.length }
 
+        val hideRetained = matchingConfig?.hideRetained ?: true
         val retainedAsNew = matchingConfig?.retainedAsNew ?: false
+        if (event.retained && hideRetained) {
+            return@withContext InboundMessageRecord(
+                id = 0,
+                brokerId = brokerId,
+                topic = event.topic,
+                receivedAt = timeProvider.nowMillis(),
+                payload = event.payload,
+                payloadPreview = "",
+                qos = event.qos,
+                retained = true,
+                duplicate = event.duplicate,
+                packetId = event.packetId,
+                isNewActivity = false,
+                isUnread = false
+            )
+        }
         val isNewActivity = !event.retained || retainedAsNew
 
         val preview = runCatching {
@@ -91,6 +111,10 @@ class MessageRepositoryImpl @Inject constructor(
         topicCounterDao.resetUnreadForTopic(brokerId, topic)
     }
 
+    override suspend fun resetUnreadForTopicAcrossBrokers(topic: String) = withContext(dispatchers.io) {
+        messageDao.markAllReadForTopicAcrossBrokers(topic)
+    }
+
     override suspend fun resetUnreadForBroker(brokerId: Long) = withContext(dispatchers.io) {
         messageDao.markAllReadForBroker(brokerId)
         topicCounterDao.resetUnreadForBroker(brokerId)
@@ -122,6 +146,10 @@ class MessageRepositoryImpl @Inject constructor(
             topic = message.topicFilter,
             unreadDelta = if (message.isUnread) 1 else 0
         )
+    }
+
+    override suspend fun deleteMessagesForTopic(topic: String) = withContext(dispatchers.io) {
+        messageDao.deleteByTopic(topic)
     }
 
     private companion object {

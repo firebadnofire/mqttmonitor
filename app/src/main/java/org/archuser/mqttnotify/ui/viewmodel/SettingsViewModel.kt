@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.archuser.mqttnotify.core.TimeProvider
 import org.archuser.mqttnotify.domain.model.ConnectionMode
+import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.domain.repo.AppStateRepository
 
 @HiltViewModel
@@ -28,7 +29,7 @@ class SettingsViewModel @Inject constructor(
                 _state.value = SettingsUiState(
                     muted = muted,
                     muteUntil = appState.globalMuteUntil,
-                    materialYouEnabled = appState.materialYouEnabled,
+                    themePreference = appState.themePreference,
                     connectionMode = appState.connectionMode
                 )
             }
@@ -48,9 +49,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun setMaterialYouEnabled(enabled: Boolean) {
+    fun setThemePreference(preference: ThemePreference) {
         viewModelScope.launch {
-            appStateRepository.setMaterialYouEnabled(enabled)
+            appStateRepository.setThemePreference(preference)
         }
     }
 }
@@ -58,6 +59,6 @@ class SettingsViewModel @Inject constructor(
 data class SettingsUiState(
     val muted: Boolean = false,
     val muteUntil: Long? = null,
-    val materialYouEnabled: Boolean = true,
+    val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val connectionMode: ConnectionMode = ConnectionMode.VISIBLE_ONLY
 )
