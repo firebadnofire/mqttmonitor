@@ -129,4 +129,3 @@ The application intentionally does **not** provide:
 ## Summary
 
 This application is a monitoring terminal, not a messaging platform. It exposes Android’s execution model clearly and gives users explicit control over how and when continuous connections are maintained. No operating mode hides tradeoffs or promises behavior the platform cannot guarantee.
-

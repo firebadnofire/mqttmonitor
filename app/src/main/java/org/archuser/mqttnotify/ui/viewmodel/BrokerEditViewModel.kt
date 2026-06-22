@@ -36,7 +36,7 @@ class BrokerEditViewModel @Inject constructor(
         if (brokerId != 0L) {
             viewModelScope.launch {
                 brokerRepository.getBroker(brokerId)?.let { broker ->
-                    _state.value = _state.value.copy(
+                    val existingState = BrokerEditUiState(
                         id = broker.id,
                         label = broker.label,
                         host = broker.host,
@@ -49,6 +49,22 @@ class BrokerEditViewModel @Inject constructor(
                         cleanStart = broker.cleanStart,
                         sessionExpirySec = broker.sessionExpirySec.toString(),
                         testedAt = broker.lastTestPassedAt,
+                        status = null
+                    )
+                    _state.value = _state.value.copy(
+                        id = existingState.id,
+                        label = existingState.label,
+                        host = existingState.host,
+                        port = existingState.port,
+                        tls = existingState.tls,
+                        protocol = existingState.protocol,
+                        username = existingState.username,
+                        clientId = existingState.clientId,
+                        keepaliveSec = existingState.keepaliveSec,
+                        cleanStart = existingState.cleanStart,
+                        sessionExpirySec = existingState.sessionExpirySec,
+                        testedAt = existingState.testedAt,
+                        testedFingerprint = existingState.currentFingerprint(),
                         status = null
                     )
                 }
@@ -74,6 +90,7 @@ class BrokerEditViewModel @Inject constructor(
                 _state.value.copy(
                     isTesting = false,
                     testedAt = timeProvider.nowMillis(),
+                    testedFingerprint = _state.value.currentFingerprint(),
                     status = "Connection test passed"
                 )
             } else {
@@ -87,6 +104,13 @@ class BrokerEditViewModel @Inject constructor(
 
     fun save(onSaved: (Long) -> Unit) {
         viewModelScope.launch {
+            if (!_state.value.hasVerifiedCurrentConfig()) {
+                _state.value = _state.value.copy(
+                    status = "Run a successful connection test for the current broker settings before saving"
+                )
+                return@launch
+            }
+
             val draft = _state.value.toBrokerConfig() ?: run {
                 _state.value = _state.value.copy(status = "Invalid broker fields")
                 return@launch
@@ -133,6 +157,7 @@ data class BrokerEditUiState(
     val cleanStart: Boolean = true,
     val sessionExpirySec: String = "0",
     val testedAt: Long? = null,
+    val testedFingerprint: String? = null,
     val isTesting: Boolean = false,
     val status: String? = null
 ) {
@@ -158,4 +183,24 @@ data class BrokerEditUiState(
             lastTestPassedAt = testedAt
         )
     }
+
+    fun currentFingerprint(): String? {
+        val draft = toBrokerConfig() ?: return null
+        return listOf(
+            draft.label,
+            draft.host,
+            draft.port.toString(),
+            draft.tls.toString(),
+            draft.protocolVersion.name,
+            draft.username.orEmpty(),
+            password,
+            draft.clientId.orEmpty(),
+            draft.keepaliveSec.toString(),
+            draft.cleanStart.toString(),
+            draft.sessionExpirySec.toString()
+        ).joinToString("|")
+    }
+
+    fun hasVerifiedCurrentConfig(): Boolean =
+        testedAt != null && testedFingerprint != null && testedFingerprint == currentFingerprint()
 }

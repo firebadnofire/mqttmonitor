@@ -4,52 +4,66 @@
 
 ## Overview
 
-MQTT Monitor is an Android MQTT client focused on message monitoring and notification delivery from user-managed brokers.
+MQTT Monitor is an Android monitoring terminal for users who run their own MQTT brokers. It is receive-focused, stores inbound messages locally, and can raise per-topic Android notifications while a real MQTT connection is active.
 
 - Application ID: `org.archuser.mqttnotify`
-- Current Version: `1.1.0` (versionCode `3`)
+- Current Version: `1.2.0` (versionCode `4`)
 - Language: Kotlin
 - UI: Jetpack Compose
 - Min SDK: 26
 - Target/Compile SDK: 36
 
-## Functional Scope
+The app does not claim guaranteed delivery. It exposes Android background tradeoffs directly and gives the user explicit control over when continuous connections are maintained.
 
-- Broker management (create, edit, delete, activate/deactivate)
-- Broker validation (connection test required before save)
-- MQTT protocol support: 3.1.1 and 5.0
-- Optional TLS and username/password authentication
-- Topic subscription management (QoS, per-topic notifications, retained-as-new behavior)
-- Local message persistence and per-topic counters
-- Per-message read/unread state and per-message deletion
-- Message Feed controls for `Read all`, `Mark read`, and `Mark unread`
-- Unread messages indicated with a dot marker on the message card
-- Global notification mute with duration selection
-- Material You enable/disable setting
-- Diagnostics/event log view
-
-## Connection Modes
+## Operating Modes
 
 ### Active While Visible (`VISIBLE_ONLY`)
 
-- MQTT connection is maintained while UI is visible.
-- Connection is dropped when app is backgrounded.
+Default and recommended.
+
+- Connects only while the app UI is visible
+- Disconnects cleanly when the app backgrounds or the screen session ends
+- Generates notifications only while connected
+
+This mode is intended for active monitoring and debugging sessions. It makes no background reliability claims.
 
 ### Persistent Foreground (`PERSISTENT_FOREGROUND`)
 
-- MQTT connection is maintained by a foreground service.
-- Persistent notification is required while active.
+Optional and off by default.
 
-## Notification Behavior
+- Keeps the MQTT connection alive through a foreground service
+- Requires an ongoing notification as explicit user consent
+- Continues while the screen is off or the app is backgrounded
 
-- Message alerts use a dedicated high-importance channel.
-- Foreground service status uses a separate low-importance channel.
-- Global mute affects notifications only; ingestion and storage continue.
-- Android system notification settings remain authoritative for final alert behavior.
+Delivery remains best-effort and still depends on Android policy, network conditions, and broker availability.
 
-## UI Reference Screenshots
+## Current Functional Scope
 
-The following screenshots document the current UI flows and states.
+- Broker management with required connection testing before save
+- TLS and username/password authentication support
+- MQTT 3.1.1 and 5.0 support
+- Topic subscription management with QoS, per-topic notifications, and retained-as-new behavior
+- Local per-topic message storage
+- Per-message read/unread state and deletion
+- Global temporary notification mute
+- Diagnostics/event log view
+- Foreground-service status notification with live broker, status, elapsed time, and message count
+
+## Notification Model
+
+- Notifications are an alert layer, not the ingestion pipeline
+- Per-topic notification enablement is supported
+- Global mute suppresses alerts only
+- Message ingestion and storage continue while muted if a connection is active
+- Retained messages are flagged and do not count as new activity unless enabled per topic
+
+## Broker Rules
+
+- Brokers are stored independently from their display labels
+- A broker configuration must pass a connection test before it can be saved
+- Invalid or unreachable broker settings are intentionally rejected
+
+## Screens
 
 <details>
 <summary>Dashboard</summary>
@@ -104,41 +118,19 @@ The following screenshots document the current UI flows and states.
 
 Main source root: `app/src/main/java/org/archuser/mqttnotify/`
 
-- `core/`: utility abstractions (time, dispatchers, topic matching)
-- `connection/`: connection coordinator/state logic
+- `connection/`: connection coordinator and mode reconciliation
 - `data/local/`: Room entities, DAO interfaces, database
-- `data/mqtt/`: MQTT adapter and connection test implementation
+- `data/mqtt/`: MQTT adapter and broker connection testing
 - `data/repo/`: repository implementations
 - `data/security/`: encrypted credential storage
 - `domain/model/`: app domain models
 - `domain/repo/`: repository contracts
 - `notifications/`: notification channels and dispatch
-- `service/`: persistent foreground service
+- `service/`: optional persistent foreground service
 - `ui/navigation/`: Compose navigation graph
 - `ui/screen/`: Compose screen components
 - `ui/viewmodel/`: state/view logic
-- `di/`: Hilt module bindings
-
-## Persistence Model
-
-Room tables:
-
-- `brokers`
-- `topic_subscriptions`
-- `messages`
-- `topic_counters`
-- `retention_policies`
-- `app_state`
-
-## Android Permissions
-
-Declared in `app/src/main/AndroidManifest.xml`:
-
-- `android.permission.INTERNET`
-- `android.permission.ACCESS_NETWORK_STATE`
-- `android.permission.POST_NOTIFICATIONS`
-- `android.permission.FOREGROUND_SERVICE`
-- `android.permission.FOREGROUND_SERVICE_DATA_SYNC`
+- `di/`: Hilt bindings
 
 ## Build and Test
 
@@ -160,11 +152,12 @@ Run standard local validation:
 ./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-## Known Constraints
+## Constraints
 
-- Background message delivery is best-effort and platform-dependent. It may require [disabling battery optimizations](https://dontkillmyapp.com/).
-- Foreground mode still depends on network availability and broker uptime.
-- Existing notification channel preferences may persist across reinstalls depending on device behavior.
+- Background delivery is best-effort only
+- Foreground mode still depends on Android policy, network reachability, and broker uptime
+- Battery optimization can still interfere with background behavior on some devices
+- Existing Android notification channel preferences may outlive app reinstalls
 
 ## Legal
 
@@ -174,4 +167,3 @@ This project is licensed under the GNU General Public License v3.0.
 
 - SPDX license identifier: `GPL-3.0-only`
 - Full license text: [`LICENSE`](LICENSE)
-- Warranty disclaimer: provided by GPLv3 terms; software is distributed without warranty.

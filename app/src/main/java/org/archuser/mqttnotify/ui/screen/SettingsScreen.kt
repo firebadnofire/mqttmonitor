@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.ui.viewmodel.SettingsUiState
 
 @Composable
@@ -43,6 +44,23 @@ fun SettingsScreen(
     var selectedLabel by remember { mutableStateOf(muteOptions.first().first) }
 
     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card {
+            Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Operating modes")
+                Text(
+                    if (state.connectionMode == ConnectionMode.VISIBLE_ONLY) {
+                        "Active while visible is the default mode. MQTT stays connected only while this UI is on screen."
+                    } else {
+                        "Persistent foreground mode is enabled. The app keeps its MQTT connection only while the ongoing notification remains active."
+                    }
+                )
+                Text(
+                    "Background delivery is best-effort only. Android, network loss, and broker availability can still delay or prevent messages.",
+                    style = androidx.compose.material3.MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         Card {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Global notification mute")
@@ -85,7 +103,7 @@ fun SettingsScreen(
         Card {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Retention")
-                Text("v1 uses default active retention policy with broker-level defaults.")
+                Text("Messages are stored locally per topic. Retention policies exist, but advanced retention controls remain out of scope for v1.")
             }
         }
 

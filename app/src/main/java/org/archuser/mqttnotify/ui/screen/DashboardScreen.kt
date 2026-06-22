@@ -13,7 +13,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -28,10 +27,23 @@ fun DashboardScreen(
     onSelectBroker: (Long?) -> Unit,
     onSetMode: (ConnectionMode) -> Unit,
     onOpenTopics: (Long) -> Unit,
-    onOpenMessages: (Long) -> Unit,
-    onStartPersistent: () -> Unit,
-    onStopPersistent: () -> Unit
+    onOpenMessages: (Long) -> Unit
 ) {
+    val modeDescription = when (state.mode) {
+        ConnectionMode.VISIBLE_ONLY ->
+            "Default and recommended. MQTT stays connected only while the app is visible."
+        ConnectionMode.PERSISTENT_FOREGROUND ->
+            "Optional background mode. MQTT stays connected while the ongoing notification remains active."
+    }
+    val connectionSummary = when {
+        state.activeBrokerId == null -> "No broker selected"
+        state.snapshot.status == ConnectionStatus.CONNECTING -> "Connecting to ${state.snapshot.brokerLabel ?: "broker"}"
+        state.snapshot.status == ConnectionStatus.CONNECTED -> "Connected to ${state.snapshot.brokerLabel ?: "broker"}"
+        state.snapshot.status == ConnectionStatus.ERROR -> state.snapshot.lastError ?: "Connection error"
+        state.mode == ConnectionMode.VISIBLE_ONLY -> "Disconnected until the app is on screen"
+        else -> "Foreground service enabled, waiting for a broker connection"
+    }
+
     Column(
         modifier = Modifier
             .padding(16.dp)
@@ -59,22 +71,18 @@ fun DashboardScreen(
             FilterChip(
                 selected = state.mode == ConnectionMode.PERSISTENT_FOREGROUND,
                 onClick = { onSetMode(ConnectionMode.PERSISTENT_FOREGROUND) },
-                label = { Text("Persistent") }
+                label = { Text("Foreground service") }
             )
         }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onStartPersistent) {
-                Text("Start Persistent")
-            }
-            OutlinedButton(onClick = onStopPersistent) {
-                Text("Stop Persistent")
-            }
-        }
+        Text(modeDescription, style = MaterialTheme.typography.bodySmall)
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("Connection")
+                Text(connectionSummary)
+                Text(
+                    "Mode: ${if (state.mode == ConnectionMode.VISIBLE_ONLY) "Active while visible" else "Persistent foreground service"}"
+                )
                 Text("Status: ${state.snapshot.status}")
                 Text("Broker: ${state.snapshot.brokerLabel ?: "None"}")
                 Text("Message count: ${state.snapshot.messageCount}")

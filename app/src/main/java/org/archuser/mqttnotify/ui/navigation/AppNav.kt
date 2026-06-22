@@ -129,21 +129,17 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                         }
                     },
                     onSetMode = {
-                        vm.setMode(it)
-                        toast(if (it == ConnectionMode.VISIBLE_ONLY) "Mode: Active while visible" else "Mode: Persistent foreground")
+                        if (it == ConnectionMode.VISIBLE_ONLY) {
+                            PersistentConnectionService.stop(context)
+                            vm.setMode(ConnectionMode.VISIBLE_ONLY)
+                            toast("Mode: Active while visible")
+                        } else {
+                            PersistentConnectionService.start(context)
+                            toast("Mode: Persistent foreground")
+                        }
                     },
                     onOpenTopics = { navController.navigate(Routes.topics(it)) },
-                    onOpenMessages = { navController.navigate(Routes.messages(it)) },
-                    onStartPersistent = {
-                        vm.setMode(ConnectionMode.PERSISTENT_FOREGROUND)
-                        PersistentConnectionService.start(context)
-                        toast("Persistent connection started")
-                    },
-                    onStopPersistent = {
-                        vm.setMode(ConnectionMode.VISIBLE_ONLY)
-                        PersistentConnectionService.stop(context)
-                        toast("Persistent connection stopped")
-                    }
+                    onOpenMessages = { navController.navigate(Routes.messages(it)) }
                 )
             }
 

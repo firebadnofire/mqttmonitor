@@ -33,10 +33,10 @@ class NotificationControllerImpl @Inject constructor(
 
         val serviceChannel = NotificationChannel(
             NotificationIds.CHANNEL_PERSISTENT,
-            "MQTT Persistent Connection",
+            "MQTT Foreground Session",
             NotificationManager.IMPORTANCE_LOW
         ).apply {
-            description = "Shows active MQTT foreground connection state"
+            description = "Shows the active MQTT foreground session and its live connection state"
             setShowBadge(false)
         }
 
@@ -72,11 +72,11 @@ class NotificationControllerImpl @Inject constructor(
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val title = snapshot.brokerLabel?.let { "MQTT: $it" } ?: "MQTT monitor"
+        val title = snapshot.brokerLabel?.let { "MQTT Monitor: $it" } ?: "MQTT Monitor"
         val statusText = when (snapshot.status) {
             ConnectionStatus.CONNECTED -> "Connected"
             ConnectionStatus.CONNECTING -> "Connecting"
-            ConnectionStatus.ERROR -> "Error"
+            ConnectionStatus.ERROR -> "Connection issue"
             ConnectionStatus.DISCONNECTED -> "Disconnected"
         }
 
@@ -88,7 +88,7 @@ class NotificationControllerImpl @Inject constructor(
             "%02d:%02d:%02d".format(h, m, s)
         } ?: "00:00:00"
 
-        val content = "Status: $statusText | Elapsed: $elapsed | Messages: ${snapshot.messageCount}"
+        val content = "Status: $statusText | Connected: $elapsed | Messages: ${snapshot.messageCount}"
 
         return NotificationCompat.Builder(context, NotificationIds.CHANNEL_PERSISTENT)
             .setSmallIcon(R.drawable.ic_stat_mqtt)
@@ -99,7 +99,7 @@ class NotificationControllerImpl @Inject constructor(
             .setOnlyAlertOnce(true)
             .setContentIntent(openIntent)
             .addAction(0, "Open", openIntent)
-            .addAction(0, "Stop persistent mode", stopIntent)
+            .addAction(0, "Stop foreground mode", stopIntent)
             .build()
     }
 

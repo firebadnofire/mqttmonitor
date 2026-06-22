@@ -105,7 +105,7 @@ fun BrokerEditScreen(
             Text("Use TLS")
         }
         Text(
-            "Tip: TLS encrypts broker traffic. Default secure MQTT port is 8883.",
+            "Tip: TLS is recommended for remote brokers. Use Test Connection before saving so the app only stores reachable configs.",
             style = MaterialTheme.typography.bodySmall
         )
 
@@ -182,7 +182,15 @@ fun BrokerEditScreen(
         state.status?.let {
             Text(
                 text = it,
-                color = if (it.contains("failed", true)) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                color = if (
+                    it.contains("failed", true) ||
+                    it.contains("invalid", true) ||
+                    it.contains("before saving", true)
+                ) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.primary
+                }
             )
         }
     }
