@@ -1,6 +1,15 @@
 # MQTT Monitor
 
-<img src="assets/icon.svg" style="width:50%;">
+<img src="assets/icon.svg" style="width:25%;">
+
+<p>
+  <a href="https://archuser.org/mqttnotify.apk">
+    <img src="readme-assets/badge_obtainium.png" alt="Get it on Obtainium" width="188" height="56" valign="middle">
+  </a>
+  <a href="https://github.com/firebadnofire/mqttmonitor/releases">
+    <img src="readme-assets/badge-apk.png" alt="Download APK" width="145" height="56" valign="middle">
+  </a>
+</p>
 
 ## Overview
 
