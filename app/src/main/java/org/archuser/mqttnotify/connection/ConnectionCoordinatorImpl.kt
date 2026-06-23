@@ -1,22 +1,24 @@
 package org.archuser.mqttnotify.connection
 
 import javax.inject.Inject
+import javax.inject.Provider
 import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.archuser.mqttnotify.core.DispatchersProvider
 import org.archuser.mqttnotify.core.TimeProvider
 import org.archuser.mqttnotify.core.TopicMatcher
+import org.archuser.mqttnotify.data.mqtt.HiveMqttClientAdapter
 import org.archuser.mqttnotify.data.mqtt.MqttClientAdapter
 import org.archuser.mqttnotify.data.mqtt.MqttEvent
 import org.archuser.mqttnotify.data.security.CredentialsStore
@@ -34,7 +36,7 @@ import org.archuser.mqttnotify.notifications.NotificationController
 
 @Singleton
 class ConnectionCoordinatorImpl @Inject constructor(
-    private val mqttClientAdapter: MqttClientAdapter,
+    private val mqttClientAdapterProvider: Provider<HiveMqttClientAdapter>,
     private val brokerRepository: BrokerRepository,
     private val topicRepository: TopicRepository,
     private val messageRepository: MessageRepository,
@@ -64,11 +66,9 @@ class ConnectionCoordinatorImpl @Inject constructor(
 
     private var uiVisible: Boolean = false
     private var persistentRunning: Boolean = false
-    private var connectedBrokerId: Long? = null
-    private var activeBroker: BrokerConfig? = null
+    private var knownBrokers: List<BrokerConfig> = emptyList()
     private var activeTopics: List<TopicSubscriptionConfig> = emptyList()
-    private val subscribedTopics = mutableSetOf<String>()
-    private var topicWatchJob: Job? = null
+    private val brokerSessions = mutableMapOf<Long, BrokerSession>()
 
     init {
         scope.launch {
@@ -78,22 +78,29 @@ class ConnectionCoordinatorImpl @Inject constructor(
         }
 
         scope.launch {
-            mqttClientAdapter.events().collectLatest { event ->
-                when (event) {
-                    is MqttEvent.ConnectionChanged -> handleConnectionState(event.status)
-                    is MqttEvent.MessageReceived -> handleMessage(event)
-                    is MqttEvent.SubscriptionAck -> diagnosticsRepository.log("Subscribed: ${event.topic}")
-                    is MqttEvent.Error -> {
-                        diagnosticsRepository.log("MQTT error: ${event.message}")
-                        _snapshot.value = _snapshot.value.copy(lastError = event.message, status = ConnectionStatus.ERROR)
-                    }
-                }
+            brokerRepository.observeBrokers().collectLatest { brokers ->
+                knownBrokers = brokers
+                reconcileSignal.tryEmit(Unit)
+            }
+        }
+
+        scope.launch {
+            topicRepository.observeChannels().collectLatest { topics ->
+                activeTopics = topics
+                reconcileSignal.tryEmit(Unit)
             }
         }
 
         scope.launch {
             reconcileSignal.collectLatest {
                 reconcile()
+            }
+        }
+
+        scope.launch {
+            while (true) {
+                delay(RECONCILE_INTERVAL_MS)
+                reconcileSignal.tryEmit(Unit)
             }
         }
 
@@ -134,96 +141,141 @@ class ConnectionCoordinatorImpl @Inject constructor(
             ConnectionMode.PERSISTENT_FOREGROUND -> persistentRunning
         }
 
-        val targetBroker = state.activeBrokerId ?: brokerRepository.observeBrokers().first().firstOrNull()?.id
-        if (!shouldConnect || targetBroker == null) {
-            disconnectInternal("No active connection target")
+        if (!shouldConnect || knownBrokers.isEmpty()) {
+            disconnectAll("No active connection target")
             return
         }
 
-        if (connectedBrokerId == targetBroker && snapshot.value.status == ConnectionStatus.CONNECTED) {
-            return
+        val wantedBrokerIds = knownBrokers.map { it.id }.toSet()
+        val staleBrokerIds = brokerSessions.keys - wantedBrokerIds
+        staleBrokerIds.forEach { brokerId ->
+            disconnectBroker(brokerId, "Broker removed")
         }
 
-        connectToBroker(targetBroker)
+        knownBrokers.forEach { broker ->
+            val session = brokerSessions[broker.id]
+            if (session == null || session.status == ConnectionStatus.ERROR || session.status == ConnectionStatus.DISCONNECTED) {
+                disconnectBroker(broker.id, "Reconnecting broker")
+                connectToBroker(broker)
+            } else {
+                session.broker = broker
+                syncSubscriptions(session, activeTopics)
+            }
+        }
+
+        updateSnapshotLocked()
     }
 
-    private suspend fun connectToBroker(brokerId: Long) {
-        disconnectInternal("Switching broker")
-        val broker = brokerRepository.getBroker(brokerId)
-        if (broker == null) {
-            _snapshot.value = _snapshot.value.copy(
-                status = ConnectionStatus.ERROR,
-                lastError = "Broker not found"
-            )
-            diagnosticsRepository.log("Connection failed: broker $brokerId not found")
-            return
-        }
-
-        _snapshot.value = _snapshot.value.copy(
-            status = ConnectionStatus.CONNECTING,
-            brokerLabel = broker.label,
-            connectedSince = null,
-            messageCount = 0,
-            lastError = null
+    private suspend fun connectToBroker(broker: BrokerConfig) {
+        val adapter = mqttClientAdapterProvider.get()
+        val session = BrokerSession(
+            broker = broker,
+            adapter = adapter,
+            eventJob = scope.launch {
+                adapter.events().collect { event ->
+                    handleBrokerEvent(broker.id, event)
+                }
+            }
         )
 
+        brokerSessions[broker.id] = session
+        session.status = ConnectionStatus.CONNECTING
+        updateSnapshotLocked()
+
         val password = broker.credentialsRef?.alias?.let { credentialsStore.getPassword(it) }
-        val result = mqttClientAdapter.connect(broker, password)
+        val result = adapter.connect(broker, password)
         if (result.isFailure) {
             val message = result.exceptionOrNull()?.message ?: "Connection failed"
-            _snapshot.value = _snapshot.value.copy(status = ConnectionStatus.ERROR, lastError = message)
+            session.status = ConnectionStatus.ERROR
+            session.lastError = message
+            updateSnapshotLocked()
             diagnosticsRepository.log("Connection failed to ${broker.label}: $message")
             return
         }
 
-        connectedBrokerId = broker.id
-        activeBroker = broker
-        _snapshot.value = _snapshot.value.copy(
-            status = ConnectionStatus.CONNECTED,
-            connectedSince = timeProvider.nowMillis(),
-            messageCount = 0,
-            lastError = null,
-            brokerLabel = broker.label
-        )
-        appStateRepository.setLastSessionStartedAt(timeProvider.nowMillis())
+        val now = timeProvider.nowMillis()
+        session.status = ConnectionStatus.CONNECTED
+        session.connectedSince = now
+        session.lastError = null
+        updateSnapshotLocked()
+        appStateRepository.setLastSessionStartedAt(now)
         diagnosticsRepository.log("Connected to ${broker.label}")
 
-        topicWatchJob?.cancel()
-        topicWatchJob = scope.launch {
-            topicRepository.observeChannels().collectLatest { topics ->
-                syncSubscriptions(topics)
-            }
-        }
+        syncSubscriptions(session, activeTopics)
     }
 
-    private suspend fun syncSubscriptions(topics: List<TopicSubscriptionConfig>) {
-        activeTopics = topics
-        if (connectedBrokerId == null || snapshot.value.status != ConnectionStatus.CONNECTED) {
+    private suspend fun syncSubscriptions(session: BrokerSession, topics: List<TopicSubscriptionConfig>) {
+        if (session.status != ConnectionStatus.CONNECTED) {
             return
         }
 
         val wanted = topics.filter { it.enabled }.map { it.topicFilter }.toSet()
-        val toAdd = wanted - subscribedTopics
-        val toRemove = subscribedTopics - wanted
+        val toAdd = wanted - session.subscribedTopics
+        val toRemove = session.subscribedTopics - wanted
 
-        toRemove.forEach { topic -> mqttClientAdapter.unsubscribe(topic) }
+        toRemove.forEach { topic ->
+            if (session.adapter.unsubscribe(topic).isSuccess) {
+                session.subscribedTopics.remove(topic)
+            }
+        }
         toAdd.forEach { topic ->
             val qos = topics.firstOrNull { it.topicFilter == topic }?.qos ?: 1
-            mqttClientAdapter.subscribe(topic, qos)
+            if (session.adapter.subscribe(topic, qos).isSuccess) {
+                session.subscribedTopics.add(topic)
+            }
         }
-
-        subscribedTopics.clear()
-        subscribedTopics.addAll(wanted)
     }
 
-    private suspend fun handleMessage(event: MqttEvent.MessageReceived) {
-        val brokerId = connectedBrokerId ?: return
-        val brokerLabel = activeBroker?.label ?: "MQTT"
+    private suspend fun handleBrokerEvent(brokerId: Long, event: MqttEvent) {
+        when (event) {
+            is MqttEvent.ConnectionChanged -> lock.withLock {
+                val session = brokerSessions[brokerId]
+                if (session != null) {
+                    session.status = event.status
+                    if (event.status == ConnectionStatus.CONNECTED && session.connectedSince == null) {
+                        session.connectedSince = timeProvider.nowMillis()
+                    }
+                    if (event.status == ConnectionStatus.DISCONNECTED) {
+                        session.connectedSince = null
+                        session.subscribedTopics.clear()
+                    }
+                    updateSnapshotLocked()
+                }
+            }
+            is MqttEvent.MessageReceived -> handleMessage(brokerId, event)
+            is MqttEvent.SubscriptionAck -> {
+                val label = lock.withLock { brokerSessions[brokerId]?.broker?.label } ?: "broker $brokerId"
+                diagnosticsRepository.log("Subscribed on $label: ${event.topic}")
+            }
+            is MqttEvent.Error -> lock.withLock {
+                val session = brokerSessions[brokerId]
+                if (session != null) {
+                    session.status = ConnectionStatus.ERROR
+                    session.lastError = event.message
+                    diagnosticsRepository.log("MQTT error on ${session.broker.label}: ${event.message}")
+                    updateSnapshotLocked()
+                }
+            }
+        }
+    }
+
+    private suspend fun handleMessage(brokerId: Long, event: MqttEvent.MessageReceived) {
+        var brokerLabel: String? = null
+        var topics: List<TopicSubscriptionConfig> = emptyList()
+        lock.withLock {
+            val session = brokerSessions[brokerId]
+            if (session != null) {
+                session.messageCount += 1
+                brokerLabel = session.broker.label
+                topics = activeTopics
+                updateSnapshotLocked()
+            }
+        }
+        val label = brokerLabel ?: return
 
         val record = messageRepository.ingestMessage(brokerId, event)
-        _snapshot.value = _snapshot.value.copy(messageCount = _snapshot.value.messageCount + 1)
 
-        val matchedTopic = activeTopics
+        val matchedTopic = topics
             .filter { it.notifyEnabled && TopicMatcher.matches(it.topicFilter, event.topic) }
             .maxByOrNull { it.topicFilter.length }
 
@@ -231,38 +283,63 @@ class ConnectionCoordinatorImpl @Inject constructor(
         val muted = appState.globalMuteUntil?.let { it > timeProvider.nowMillis() } ?: false
 
         if (matchedTopic != null && !muted && record.isNewActivity) {
-            notifications.notifyTopicMessage(brokerLabel, record)
+            notifications.notifyTopicMessage(label, record)
         }
     }
 
-    private suspend fun handleConnectionState(status: ConnectionStatus) {
-        _snapshot.value = when (status) {
-            ConnectionStatus.CONNECTED -> _snapshot.value.copy(status = status, lastError = null)
-            ConnectionStatus.CONNECTING -> _snapshot.value.copy(status = status)
-            ConnectionStatus.DISCONNECTED -> _snapshot.value.copy(
-                status = status,
-                connectedSince = null,
-                messageCount = 0
-            )
-            ConnectionStatus.ERROR -> _snapshot.value.copy(status = status)
+    private suspend fun disconnectAll(reason: String) {
+        brokerSessions.keys.toList().forEach { brokerId ->
+            disconnectBroker(brokerId, reason)
         }
+        updateSnapshotLocked()
     }
 
-    private suspend fun disconnectInternal(reason: String) {
-        topicWatchJob?.cancel()
-        topicWatchJob = null
-        if (connectedBrokerId != null || snapshot.value.status != ConnectionStatus.DISCONNECTED) {
-            mqttClientAdapter.disconnect()
-            diagnosticsRepository.log("Disconnected: $reason")
+    private suspend fun disconnectBroker(brokerId: Long, reason: String) {
+        val session = brokerSessions.remove(brokerId) ?: return
+        session.eventJob.cancel()
+        session.adapter.disconnect()
+        diagnosticsRepository.log("Disconnected from ${session.broker.label}: $reason")
+    }
+
+    private fun updateSnapshotLocked() {
+        val sessions = brokerSessions.values.toList()
+        val connected = sessions.filter { it.status == ConnectionStatus.CONNECTED }
+        val connecting = sessions.filter { it.status == ConnectionStatus.CONNECTING }
+        val errored = sessions.filter { it.status == ConnectionStatus.ERROR }
+        val status = when {
+            connected.isNotEmpty() -> ConnectionStatus.CONNECTED
+            connecting.isNotEmpty() -> ConnectionStatus.CONNECTING
+            errored.isNotEmpty() -> ConnectionStatus.ERROR
+            else -> ConnectionStatus.DISCONNECTED
         }
-        connectedBrokerId = null
-        activeBroker = null
-        activeTopics = emptyList()
-        subscribedTopics.clear()
-        _snapshot.value = _snapshot.value.copy(
-            status = ConnectionStatus.DISCONNECTED,
-            connectedSince = null,
-            messageCount = 0
+        val brokerLabel = when (sessions.size) {
+            0 -> null
+            1 -> sessions.first().broker.label
+            else -> "${connected.size}/${sessions.size} brokers"
+        }
+        val lastError = errored.firstOrNull()?.let { "${it.broker.label}: ${it.lastError ?: "Connection error"}" }
+
+        _snapshot.value = ConnectionSnapshot(
+            status = status,
+            brokerLabel = brokerLabel,
+            connectedSince = connected.mapNotNull { it.connectedSince }.minOrNull(),
+            messageCount = sessions.sumOf { it.messageCount },
+            lastError = lastError
         )
+    }
+
+    private data class BrokerSession(
+        var broker: BrokerConfig,
+        val adapter: MqttClientAdapter,
+        val eventJob: Job,
+        val subscribedTopics: MutableSet<String> = mutableSetOf(),
+        var status: ConnectionStatus = ConnectionStatus.DISCONNECTED,
+        var connectedSince: Long? = null,
+        var messageCount: Long = 0,
+        var lastError: String? = null
+    )
+
+    private companion object {
+        private const val RECONCILE_INTERVAL_MS = 30_000L
     }
 }

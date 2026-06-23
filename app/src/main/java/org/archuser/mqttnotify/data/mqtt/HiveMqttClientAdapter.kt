@@ -7,7 +7,6 @@ import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
 import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
 import javax.inject.Inject
-import javax.inject.Singleton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -22,7 +21,6 @@ import org.archuser.mqttnotify.domain.model.BrokerConfig
 import org.archuser.mqttnotify.domain.model.ConnectionStatus
 import org.archuser.mqttnotify.domain.model.ProtocolVersion
 
-@Singleton
 class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
 
     private val eventsFlow = MutableSharedFlow<MqttEvent>(extraBufferCapacity = 256)
