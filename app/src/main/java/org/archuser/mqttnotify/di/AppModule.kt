@@ -2,6 +2,8 @@ package org.archuser.mqttnotify.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -28,6 +30,7 @@ object AppModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, "mqttnotify.db")
+            .addMigrations(MIGRATION_7_8)
             .fallbackToDestructiveMigration()
             .build()
 
@@ -45,4 +48,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideTimeProvider(impl: SystemTimeProvider): TimeProvider = impl
+
+    private val MIGRATION_7_8 = object : Migration(7, 8) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE app_state ADD COLUMN start_listener_on_app_launch INTEGER NOT NULL DEFAULT 0")
+            db.execSQL("ALTER TABLE app_state ADD COLUMN start_listener_on_phone_unlock INTEGER NOT NULL DEFAULT 0")
+        }
+    }
 }

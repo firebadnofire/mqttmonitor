@@ -39,6 +39,12 @@ class AppStateRepositoryImpl @Inject constructor(
     override suspend fun setBatteryOptimizationPromptCompleted(completed: Boolean) =
         update { it.copy(batteryOptimizationPromptCompleted = completed) }
 
+    override suspend fun setStartListenerOnAppLaunch(enabled: Boolean) =
+        update { it.copy(startListenerOnAppLaunch = enabled) }
+
+    override suspend fun setStartListenerOnPhoneUnlock(enabled: Boolean) =
+        update { it.copy(startListenerOnPhoneUnlock = enabled) }
+
     private suspend fun update(transform: (AppState) -> AppState) = withContext(dispatchers.io) {
         val next = transform(currentState())
         appStateDao.upsert(next.toEntity())
@@ -50,6 +56,8 @@ class AppStateRepositoryImpl @Inject constructor(
         globalMuteUntil = null,
         lastSessionStartedAt = null,
         themePreference = ThemePreference.SYSTEM,
-        batteryOptimizationPromptCompleted = false
+        batteryOptimizationPromptCompleted = false,
+        startListenerOnAppLaunch = false,
+        startListenerOnPhoneUnlock = false
     )
 }

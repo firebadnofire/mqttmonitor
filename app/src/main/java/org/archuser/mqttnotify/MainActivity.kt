@@ -14,15 +14,19 @@ import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.launch
 import org.archuser.mqttnotify.connection.ConnectionCoordinator
+import org.archuser.mqttnotify.domain.repo.AppStateRepository
 import org.archuser.mqttnotify.ui.navigation.AppNav
 import org.archuser.mqttnotify.ui.theme.MqttNotifyTheme
 import org.archuser.mqttnotify.ui.viewmodel.AppChromeViewModel
+import org.archuser.mqttnotify.service.PersistentConnectionService
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var connectionCoordinator: ConnectionCoordinator
+    @Inject lateinit var appStateRepository: AppStateRepository
     private val appChromeViewModel: AppChromeViewModel by viewModels()
+    private var appLaunchAutostartChecked = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,6 +70,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             connectionCoordinator.onUiVisibilityChanged(true)
         }
+        maybeStartListenerOnAppLaunch()
     }
 
     override fun onStop() {
@@ -73,5 +78,16 @@ class MainActivity : ComponentActivity() {
             connectionCoordinator.onUiVisibilityChanged(false)
         }
         super.onStop()
+    }
+
+    private fun maybeStartListenerOnAppLaunch() {
+        if (appLaunchAutostartChecked) return
+        appLaunchAutostartChecked = true
+
+        lifecycleScope.launch {
+            if (appStateRepository.currentState().startListenerOnAppLaunch) {
+                PersistentConnectionService.start(applicationContext)
+            }
+        }
     }
 }

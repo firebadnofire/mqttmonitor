@@ -12,5 +12,7 @@ data class AppStateEntity(
     @ColumnInfo(name = "global_mute_until") val globalMuteUntil: Long?,
     @ColumnInfo(name = "last_session_started_at") val lastSessionStartedAt: Long?,
     @ColumnInfo(name = "theme_preference", defaultValue = "'SYSTEM'") val themePreference: String,
-    @ColumnInfo(name = "battery_optimization_prompt_completed", defaultValue = "0") val batteryOptimizationPromptCompleted: Boolean
+    @ColumnInfo(name = "battery_optimization_prompt_completed", defaultValue = "0") val batteryOptimizationPromptCompleted: Boolean,
+    @ColumnInfo(name = "start_listener_on_app_launch", defaultValue = "0") val startListenerOnAppLaunch: Boolean,
+    @ColumnInfo(name = "start_listener_on_phone_unlock", defaultValue = "0") val startListenerOnPhoneUnlock: Boolean
 )

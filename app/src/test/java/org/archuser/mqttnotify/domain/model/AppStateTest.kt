@@ -14,7 +14,9 @@ class AppStateTest {
             globalMuteUntil = 2000L,
             lastSessionStartedAt = null,
             themePreference = ThemePreference.SYSTEM,
-            batteryOptimizationPromptCompleted = false
+            batteryOptimizationPromptCompleted = false,
+            startListenerOnAppLaunch = false,
+            startListenerOnPhoneUnlock = false
         )
         assertTrue(mutedState.isMuted(1000L))
         assertFalse(mutedState.isMuted(3000L))

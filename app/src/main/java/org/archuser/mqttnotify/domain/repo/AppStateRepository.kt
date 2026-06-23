@@ -14,4 +14,6 @@ interface AppStateRepository {
     suspend fun setLastSessionStartedAt(time: Long?)
     suspend fun setThemePreference(preference: ThemePreference)
     suspend fun setBatteryOptimizationPromptCompleted(completed: Boolean)
+    suspend fun setStartListenerOnAppLaunch(enabled: Boolean)
+    suspend fun setStartListenerOnPhoneUnlock(enabled: Boolean)
 }

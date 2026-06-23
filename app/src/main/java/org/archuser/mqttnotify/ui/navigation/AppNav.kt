@@ -321,6 +321,8 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                             dashboardVm.setMode(ConnectionMode.VISIBLE_ONLY)
                         }
                     },
+                    onStartListenerOnAppLaunchChanged = vm::setStartListenerOnAppLaunch,
+                    onStartListenerOnPhoneUnlockChanged = vm::setStartListenerOnPhoneUnlock,
                     onOpenBatterySettings = appChromeViewModel::openBatteryOptimizationSettings
                 )
             }

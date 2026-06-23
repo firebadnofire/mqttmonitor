@@ -36,6 +36,8 @@ fun SettingsScreen(
     onThemeChanged: (ThemePreference) -> Unit,
     onKeepHistoryIndefinitelyChanged: (Boolean) -> Unit,
     onPersistentListenerChanged: (Boolean) -> Unit,
+    onStartListenerOnAppLaunchChanged: (Boolean) -> Unit,
+    onStartListenerOnPhoneUnlockChanged: (Boolean) -> Unit,
     onOpenBatterySettings: () -> Unit
 ) {
     val formattedMuteUntil = state.muteUntil?.let {
@@ -66,7 +68,28 @@ fun SettingsScreen(
                 "Keep MQTT Notify running as a foreground service when listening in the background.",
                 style = MaterialTheme.typography.caption
             )
-            Text("Start listener on app launch: Off")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = state.startListenerOnAppLaunch,
+                    onCheckedChange = onStartListenerOnAppLaunchChanged
+                )
+                Text("Start listener on app launch")
+            }
+            Text(
+                "Starts the foreground MQTT notification listener the first time the app is opened after process start.",
+                style = MaterialTheme.typography.caption
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = state.startListenerOnPhoneUnlock,
+                    onCheckedChange = onStartListenerOnPhoneUnlockChanged
+                )
+                Text("Start listener on phone unlock")
+            }
+            Text(
+                "Starts the foreground listener the first time the phone is unlocked after a restart.",
+                style = MaterialTheme.typography.caption
+            )
         }
 
         SettingsCard("Notifications") {

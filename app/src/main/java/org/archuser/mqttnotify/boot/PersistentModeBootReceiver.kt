@@ -9,7 +9,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import org.archuser.mqttnotify.domain.model.ConnectionMode
+import org.archuser.mqttnotify.domain.repo.DiagnosticsRepository
 import org.archuser.mqttnotify.domain.repo.AppStateRepository
 import org.archuser.mqttnotify.service.PersistentConnectionService
 
@@ -17,9 +17,10 @@ import org.archuser.mqttnotify.service.PersistentConnectionService
 class PersistentModeBootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var appStateRepository: AppStateRepository
+    @Inject lateinit var diagnosticsRepository: DiagnosticsRepository
 
     override fun onReceive(context: Context, intent: Intent?) {
-        if (intent?.action != Intent.ACTION_BOOT_COMPLETED) {
+        if (intent?.action != Intent.ACTION_USER_UNLOCKED) {
             return
         }
 
@@ -27,8 +28,12 @@ class PersistentModeBootReceiver : BroadcastReceiver() {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
                 val state = appStateRepository.currentState()
-                if (state.connectionMode == ConnectionMode.PERSISTENT_FOREGROUND && state.activeBrokerId != null) {
-                    PersistentConnectionService.start(context.applicationContext)
+                if (state.startListenerOnPhoneUnlock) {
+                    runCatching {
+                        PersistentConnectionService.start(context.applicationContext)
+                    }.onFailure { error ->
+                        diagnosticsRepository.log("Phone unlock listener start failed: ${error.message}")
+                    }
                 }
             } finally {
                 pendingResult.finish()

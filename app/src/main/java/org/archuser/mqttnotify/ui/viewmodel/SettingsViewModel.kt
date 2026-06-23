@@ -34,6 +34,8 @@ class SettingsViewModel @Inject constructor(
                     muteUntil = appState.globalMuteUntil,
                     themePreference = appState.themePreference,
                     connectionMode = appState.connectionMode,
+                    startListenerOnAppLaunch = appState.startListenerOnAppLaunch,
+                    startListenerOnPhoneUnlock = appState.startListenerOnPhoneUnlock,
                     keepHistoryIndefinitely = _state.value.keepHistoryIndefinitely
                 )
             }
@@ -66,6 +68,18 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setStartListenerOnAppLaunch(enabled: Boolean) {
+        viewModelScope.launch {
+            appStateRepository.setStartListenerOnAppLaunch(enabled)
+        }
+    }
+
+    fun setStartListenerOnPhoneUnlock(enabled: Boolean) {
+        viewModelScope.launch {
+            appStateRepository.setStartListenerOnPhoneUnlock(enabled)
+        }
+    }
+
     fun setKeepHistoryIndefinitely(enabled: Boolean) {
         viewModelScope.launch {
             val current = retentionRepository.globalDefaultPolicy()
@@ -94,5 +108,7 @@ data class SettingsUiState(
     val muteUntil: Long? = null,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
     val connectionMode: ConnectionMode = ConnectionMode.VISIBLE_ONLY,
+    val startListenerOnAppLaunch: Boolean = false,
+    val startListenerOnPhoneUnlock: Boolean = false,
     val keepHistoryIndefinitely: Boolean = false
 )
