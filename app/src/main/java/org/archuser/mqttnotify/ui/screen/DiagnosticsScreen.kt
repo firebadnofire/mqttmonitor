@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.ConnectionSnapshot
 import org.archuser.mqttnotify.domain.model.ConnectionStatus
+import org.archuser.mqttnotify.ui.theme.WarningAmber
 
 @Composable
 fun DiagnosticsScreen(
@@ -42,8 +43,14 @@ fun DiagnosticsScreen(
                 Text("Listener", style = MaterialTheme.typography.subtitle1)
                 Text("State: ${if (running) "Active" else "Stopped"}")
                 Text("Started at: ${snapshot.connectedSince?.let { formatter.format(Date(it)) } ?: "Not running"}")
-                Text("Persistent listener: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND) "Enabled" else "Disabled"}")
-                Text("Foreground notification: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) "Visible" else "Not visible"}")
+                Text(
+                    "Persistent listener: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND) "Enabled" else "Disabled"}",
+                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND) MaterialTheme.colors.onSurface else WarningAmber
+                )
+                Text(
+                    "Foreground notification: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) "Visible" else "Not visible"}",
+                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) MaterialTheme.colors.onSurface else WarningAmber
+                )
                 Text("Message count: ${snapshot.messageCount}")
                 snapshot.lastError?.let { Text("Last error: $it", color = MaterialTheme.colors.error) }
                 Button(onClick = onStartStop) {

@@ -109,7 +109,8 @@ fun AppStateEntity.toModel(): AppState = AppState(
     connectionMode = runCatching { ConnectionMode.valueOf(connectionMode) }.getOrDefault(ConnectionMode.VISIBLE_ONLY),
     globalMuteUntil = globalMuteUntil,
     lastSessionStartedAt = lastSessionStartedAt,
-    themePreference = runCatching { ThemePreference.valueOf(themePreference) }.getOrDefault(ThemePreference.SYSTEM)
+    themePreference = runCatching { ThemePreference.valueOf(themePreference) }.getOrDefault(ThemePreference.SYSTEM),
+    batteryOptimizationPromptCompleted = batteryOptimizationPromptCompleted
 )
 
 fun AppState.toEntity(): AppStateEntity = AppStateEntity(
@@ -118,5 +119,6 @@ fun AppState.toEntity(): AppStateEntity = AppStateEntity(
     connectionMode = connectionMode.name,
     globalMuteUntil = globalMuteUntil,
     lastSessionStartedAt = lastSessionStartedAt,
-    themePreference = themePreference.name
+    themePreference = themePreference.name,
+    batteryOptimizationPromptCompleted = batteryOptimizationPromptCompleted
 )

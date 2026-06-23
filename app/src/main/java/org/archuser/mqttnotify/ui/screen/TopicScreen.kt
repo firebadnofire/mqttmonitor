@@ -34,6 +34,8 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import org.archuser.mqttnotify.ui.theme.WarningAmber
+import org.archuser.mqttnotify.ui.theme.WarningAmberSoft
 import org.archuser.mqttnotify.domain.model.ConnectionSnapshot
 import org.archuser.mqttnotify.domain.model.ConnectionStatus
 import org.archuser.mqttnotify.domain.model.InboundMessageRecord
@@ -240,7 +242,7 @@ private fun ListenerBanner(snapshot: ConnectionSnapshot, onStart: () -> Unit, on
                 Button(onClick = onViewService) { Text("VIEW") }
             }
         }
-        else -> Card(elevation = 1.dp) {
+        else -> Card(elevation = 1.dp, backgroundColor = WarningAmberSoft) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("MQTT listener is stopped", style = MaterialTheme.typography.subtitle1)
                 Text("No brokers are currently connected.")
@@ -275,7 +277,7 @@ private fun MessageRow(message: InboundMessageRecord, timestamp: String, onDelet
                 fontFamily = FontFamily.Monospace
             )
             if (message.retained) {
-                Text("Retained", color = MaterialTheme.colors.primary)
+                Text("Retained", color = WarningAmber)
             }
             Spacer(modifier = Modifier.height(2.dp))
             OutlinedButton(onClick = { onDelete(message.id) }) {

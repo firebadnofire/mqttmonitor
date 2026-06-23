@@ -10,17 +10,22 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
+import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.OutlinedTextField
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import org.archuser.mqttnotify.ui.theme.ErrorRed
+import org.archuser.mqttnotify.ui.theme.SuccessGreen
+import org.archuser.mqttnotify.ui.theme.WarningAmber
 import org.archuser.mqttnotify.ui.viewmodel.BrokerEditUiState
 
 @Composable
@@ -126,10 +131,14 @@ fun BrokerEditScreen(
         )
 
         state.status?.let {
-            Text(
-                text = it,
-                color = if (it.contains("successful", true)) MaterialTheme.colors.primary else MaterialTheme.colors.error
-            )
+            val tone = brokerStatusTone(it)
+            Card(backgroundColor = tone.background, modifier = Modifier.fillMaxWidth(), elevation = 0.dp) {
+                Text(
+                    text = it,
+                    color = tone.foreground,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -141,3 +150,30 @@ fun BrokerEditScreen(
         }
     }
 }
+
+private fun brokerStatusTone(message: String): StatusTone = when {
+    message.contains("passed", ignoreCase = true) ||
+        message.contains("successful", ignoreCase = true) ||
+        message.contains("saved", ignoreCase = true) -> StatusTone(
+        background = SuccessGreen,
+        foreground = Color.White
+    )
+
+    message.contains("failed", ignoreCase = true) ||
+        message.contains("invalid", ignoreCase = true) ||
+        message.contains("before saving", ignoreCase = true) ||
+        message.contains("missing", ignoreCase = true) -> StatusTone(
+        background = ErrorRed,
+        foreground = Color.White
+    )
+
+    else -> StatusTone(
+        background = WarningAmber,
+        foreground = Color.Black
+    )
+}
+
+private data class StatusTone(
+    val background: Color,
+    val foreground: Color
+)

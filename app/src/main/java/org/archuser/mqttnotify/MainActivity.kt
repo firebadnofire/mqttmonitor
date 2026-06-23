@@ -4,6 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
+import androidx.compose.material.AlertDialog
+import androidx.compose.material.Text
+import androidx.compose.material.TextButton
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -26,14 +29,39 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themePreference by appChromeViewModel.themePreference.collectAsStateWithLifecycle()
+            val showBatteryPrompt by appChromeViewModel.showBatteryOptimizationPrompt.collectAsStateWithLifecycle()
             MqttNotifyTheme(themePreference = themePreference) {
                 AppNav(appChromeViewModel = appChromeViewModel)
+                if (showBatteryPrompt) {
+                    AlertDialog(
+                        onDismissRequest = appChromeViewModel::dismissBatteryOptimizationPrompt,
+                        title = { Text("Battery optimization") },
+                        text = {
+                            Text(
+                                "MQTT Notify needs to stay connected in the background to receive broker messages in real time. " +
+                                    "Android may stop background apps to save battery. Allowing unrestricted background battery " +
+                                    "use improves reliability, especially when the screen is off."
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = appChromeViewModel::requestIgnoreBatteryOptimizations) {
+                                Text("Allow background listening")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = appChromeViewModel::dismissBatteryOptimizationPrompt) {
+                                Text("Skip")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
 
     override fun onStart() {
         super.onStart()
+        appChromeViewModel.refreshBatteryOptimizationState()
         lifecycleScope.launch {
             connectionCoordinator.onUiVisibilityChanged(true)
         }

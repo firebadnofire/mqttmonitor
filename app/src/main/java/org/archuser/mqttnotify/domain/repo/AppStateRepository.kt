@@ -13,4 +13,5 @@ interface AppStateRepository {
     suspend fun setGlobalMuteUntil(until: Long?)
     suspend fun setLastSessionStartedAt(time: Long?)
     suspend fun setThemePreference(preference: ThemePreference)
+    suspend fun setBatteryOptimizationPromptCompleted(completed: Boolean)
 }

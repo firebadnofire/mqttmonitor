@@ -21,18 +21,22 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import org.archuser.mqttnotify.domain.model.BatteryOptimizationState
 import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.ThemePreference
+import org.archuser.mqttnotify.ui.theme.WarningAmber
 import org.archuser.mqttnotify.ui.viewmodel.SettingsUiState
 
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
+    batteryOptimizationState: BatteryOptimizationState,
     onMuteForMinutes: (Int) -> Unit,
     onClearMute: () -> Unit,
     onThemeChanged: (ThemePreference) -> Unit,
     onPersistentListenerChanged: (Boolean) -> Unit,
-    onOpenServiceStatus: () -> Unit
+    onOpenServiceStatus: () -> Unit,
+    onOpenBatterySettings: () -> Unit
 ) {
     val formattedMuteUntil = state.muteUntil?.let {
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date(it))
@@ -66,7 +70,10 @@ fun SettingsScreen(
         }
 
         SettingsCard("Notifications") {
-            Text(if (state.muted) "Global mute active until $formattedMuteUntil" else "Global mute is off")
+            Text(
+                if (state.muted) "Global mute active until $formattedMuteUntil" else "Global mute is off",
+                color = if (state.muted) WarningAmber else MaterialTheme.colors.onSurface
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { onMuteForMinutes(15) }) { Text("MUTE 15 MIN") }
                 OutlinedButton(onClick = onClearMute) { Text("CLEAR") }
@@ -80,9 +87,19 @@ fun SettingsScreen(
         }
 
         SettingsCard("Battery") {
-            Text("Battery optimization: Unknown")
+            Text(
+                "Battery optimization: ${batteryOptimizationLabel(batteryOptimizationState)}",
+                color = if (batteryOptimizationState == BatteryOptimizationState.UNRESTRICTED) {
+                    MaterialTheme.colors.onSurface
+                } else {
+                    WarningAmber
+                }
+            )
             Text("Android may stop the listener while the phone is idle.", style = MaterialTheme.typography.caption)
-            Button(onClick = onOpenServiceStatus) { Text("OPEN SERVICE STATUS") }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = onOpenBatterySettings) { Text("ALLOW BACKGROUND LISTENING") }
+                OutlinedButton(onClick = onOpenServiceStatus) { Text("OPEN SERVICE STATUS") }
+            }
         }
     }
 }
@@ -108,4 +125,10 @@ private fun ThemeOption(
         RadioButton(selected = selected == value, onClick = { onThemeChanged(value) })
         Text(label)
     }
+}
+
+private fun batteryOptimizationLabel(state: BatteryOptimizationState): String = when (state) {
+    BatteryOptimizationState.UNRESTRICTED -> "Unrestricted"
+    BatteryOptimizationState.OPTIMIZED -> "Optimized"
+    BatteryOptimizationState.UNKNOWN -> "Unknown"
 }

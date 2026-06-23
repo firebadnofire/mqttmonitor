@@ -13,7 +13,8 @@ class AppStateTest {
             connectionMode = ConnectionMode.VISIBLE_ONLY,
             globalMuteUntil = 2000L,
             lastSessionStartedAt = null,
-            themePreference = ThemePreference.SYSTEM
+            themePreference = ThemePreference.SYSTEM,
+            batteryOptimizationPromptCompleted = false
         )
         assertTrue(mutedState.isMuted(1000L))
         assertFalse(mutedState.isMuted(3000L))

@@ -62,6 +62,7 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
     val navBackStack by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStack?.destination?.route ?: Routes.CHANNELS
     val muted by appChromeViewModel.muted.collectAsStateWithLifecycle()
+    val batteryOptimizationState by appChromeViewModel.batteryOptimizationState.collectAsStateWithLifecycle()
     val dashboardVm: DashboardViewModel = hiltViewModel()
     val dashboardState by dashboardVm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -291,6 +292,7 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                 val state by vm.state.collectAsStateWithLifecycle()
                 SettingsScreen(
                     state = state,
+                    batteryOptimizationState = batteryOptimizationState,
                     onMuteForMinutes = {
                         vm.muteFor(it)
                         toast("Notifications muted for $it minutes")
@@ -309,7 +311,8 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                             dashboardVm.setMode(ConnectionMode.VISIBLE_ONLY)
                         }
                     },
-                    onOpenServiceStatus = { navController.navigate(Routes.SERVICE_STATUS) }
+                    onOpenServiceStatus = { navController.navigate(Routes.SERVICE_STATUS) },
+                    onOpenBatterySettings = appChromeViewModel::openBatteryOptimizationSettings
                 )
             }
 

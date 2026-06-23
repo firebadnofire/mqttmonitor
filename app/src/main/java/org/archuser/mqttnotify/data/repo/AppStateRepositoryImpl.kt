@@ -36,6 +36,9 @@ class AppStateRepositoryImpl @Inject constructor(
 
     override suspend fun setThemePreference(preference: ThemePreference) = update { it.copy(themePreference = preference) }
 
+    override suspend fun setBatteryOptimizationPromptCompleted(completed: Boolean) =
+        update { it.copy(batteryOptimizationPromptCompleted = completed) }
+
     private suspend fun update(transform: (AppState) -> AppState) = withContext(dispatchers.io) {
         val next = transform(currentState())
         appStateDao.upsert(next.toEntity())
@@ -46,6 +49,7 @@ class AppStateRepositoryImpl @Inject constructor(
         connectionMode = ConnectionMode.VISIBLE_ONLY,
         globalMuteUntil = null,
         lastSessionStartedAt = null,
-        themePreference = ThemePreference.SYSTEM
+        themePreference = ThemePreference.SYSTEM,
+        batteryOptimizationPromptCompleted = false
     )
 }

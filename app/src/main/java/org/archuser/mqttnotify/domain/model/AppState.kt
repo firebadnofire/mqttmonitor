@@ -5,7 +5,8 @@ data class AppState(
     val connectionMode: ConnectionMode,
     val globalMuteUntil: Long?,
     val lastSessionStartedAt: Long?,
-    val themePreference: ThemePreference
+    val themePreference: ThemePreference,
+    val batteryOptimizationPromptCompleted: Boolean
 )
 
 fun AppState.isMuted(now: Long): Boolean {
