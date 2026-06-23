@@ -51,11 +51,11 @@ jobs:
 
           if [ "$container_arch" = "arm64" ]; then
             dpkg --add-architecture amd64
-            cat <<'EOF' | $tee_cmd /etc/apt/sources.list.d/amd64.list >/dev/null
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main universe
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main universe
-deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main universe
-EOF
+            printf '%s\n' \
+              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main universe' \
+              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main universe' \
+              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main universe' \
+              | $tee_cmd /etc/apt/sources.list.d/amd64.list >/dev/null
           fi
 
           $apt_get update
