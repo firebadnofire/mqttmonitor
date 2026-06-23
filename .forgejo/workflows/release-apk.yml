@@ -44,11 +44,6 @@ jobs:
 
           container_arch="$(dpkg --print-architecture)"
 
-          {
-            echo 'Acquire::http::Proxy "http://apt-cacher-ng:3142";'
-            echo 'Acquire::https::Proxy "http://apt-cacher-ng:3142";'
-          } | $tee_cmd /etc/apt/apt.conf.d/01proxy >/dev/null
-
           if [ "$container_arch" = "arm64" ]; then
             dpkg --add-architecture amd64
             printf '%s\n' \

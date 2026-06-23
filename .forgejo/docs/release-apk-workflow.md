@@ -66,17 +66,7 @@ Android SDK can start under the host's translation layer.
 Do not add Docker service containers, Docker socket mounts, or DinD setup unless
 the runner configuration changes.
 
-## APT Proxy and Bootstrap
-
-The first step configures APT to use the runner-local cache:
-
-```apt
-Acquire::http::Proxy "http://apt-cacher-ng:3142";
-Acquire::https::Proxy "http://apt-cacher-ng:3142";
-```
-
-This depends on the job container being on `ci-network`, where
-`apt-cacher-ng:3142` is reachable.
+## Bootstrap
 
 The bootstrap step installs:
 
@@ -93,8 +83,7 @@ have Node 20 or newer. This is necessary because `actions/checkout@v4`,
 inside the job container.
 
 If the runner image changes to an image that already includes these tools and
-Node 20, the bootstrap step can be simplified, but keep the APT proxy setup before
-any `apt-get update`.
+Node 20, the bootstrap step can be simplified.
 
 ## External Actions
 
@@ -332,14 +321,6 @@ Use a full action URL, for example:
 ```yaml
 uses: https://github.com/android-actions/setup-android@v3
 ```
-
-### APT cannot connect to package repositories
-
-Verify:
-
-- the job is on `ci-network`;
-- `apt-cacher-ng:3142` is reachable from that network;
-- the APT proxy file is written before `apt-get update`.
 
 ### GitHub upload fails with duplicate asset
 
