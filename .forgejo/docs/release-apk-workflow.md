@@ -29,13 +29,17 @@ will not create a skipped job, it will create no job at all.
 
 ## Runner Environment
 
+The release workflow must run on an x86_64 Forgejo runner. The workflow itself
+fails immediately when `RUNNER_ARCH` is not `X64`, before any Android setup
+starts.
+
 The job uses the local Forgejo runner label:
 
 ```yaml
 runs-on: ubuntu-22.04
 ```
 
-On this runner, that label maps to:
+In the current local setup, that label maps to:
 
 ```text
 ubuntu-22.04:docker://ubuntu:22.04
@@ -51,6 +55,12 @@ container:
 
 This is not Docker-in-Docker. The runner starts the job in an Ubuntu container on
 the host Docker daemon and attaches it to the runner-provided `ci-network`.
+
+Do not split architecture detection and release execution into separate jobs.
+Forgejo can schedule those jobs onto different runners, which makes any arch
+detection result unsafe for subsequent jobs. If release builds need to route to a
+specific machine class, do that with runner labels in runner configuration, not
+with a probe job inside this workflow.
 
 Do not add Docker service containers, Docker socket mounts, or DinD setup unless
 the runner configuration changes.

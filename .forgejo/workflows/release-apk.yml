@@ -7,57 +7,25 @@ on:
       - "V*"
 
 jobs:
-  detect-runner:
+  release:
     runs-on: ubuntu-22.04
-    outputs:
-      runner_arch: ${{ steps.detect.outputs.runner_arch }}
-      container_image: ${{ steps.detect.outputs.container_image }}
-      container_options: ${{ steps.detect.outputs.container_options }}
+    container:
+      image: ubuntu:22.04
+      options: --network ci-network
 
     steps:
-      - name: Detect runner architecture
-        id: detect
+      - name: Require x86_64 runner
         shell: bash
         run: |
           set -euo pipefail
 
           runner_arch="${RUNNER_ARCH:-unknown}"
-          case "$runner_arch" in
-            X64)
-              container_image="ubuntu:22.04"
-              container_options="--network ci-network"
-              ;;
-            ARM64)
-              container_image="ubuntu:22.04"
-              container_options="--platform linux/amd64 --network ci-network"
-              ;;
-            *)
-              echo "Unsupported runner architecture: $runner_arch" >&2
-              exit 1
-              ;;
-          esac
-
-          {
-            echo "runner_arch=$runner_arch"
-            echo "container_image=$container_image"
-            echo "container_options=$container_options"
-          } >> "$GITHUB_OUTPUT"
-
-  release:
-    needs: detect-runner
-    runs-on: ubuntu-22.04
-    container:
-      image: ${{ needs.detect-runner.outputs.container_image }}
-      options: ${{ needs.detect-runner.outputs.container_options }}
-
-    steps:
-      - name: Report selected runner strategy
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Runner architecture: ${{ needs.detect-runner.outputs.runner_arch }}"
-          echo "Container image: ${{ needs.detect-runner.outputs.container_image }}"
-          echo "Container options: ${{ needs.detect-runner.outputs.container_options }}"
+          echo "Runner architecture: ${runner_arch}"
+          if [ "$runner_arch" != "X64" ]; then
+            echo "Release builds currently require an x86_64 Forgejo runner." >&2
+            echo "This workflow must be routed to a dedicated x86_64 runner label before Android setup starts." >&2
+            exit 1
+          fi
 
       - name: Prepare APT and action runtime
         shell: bash
