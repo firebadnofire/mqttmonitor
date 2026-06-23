@@ -112,13 +112,13 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                     }
                     IconButton(
                         onClick = {
-                            appChromeViewModel.toggleMute()
-                            toast(if (muted) "Notifications unmuted" else "Notifications muted for 15 minutes")
+                            appChromeViewModel.extendMute()
+                            toast(if (muted) "Notifications muted for 15 more minutes" else "Notifications muted for 15 minutes")
                         }
                     ) {
                         Icon(
                             imageVector = if (muted) Icons.Default.NotificationsOff else Icons.Default.Notifications,
-                            contentDescription = "Toggle mute"
+                            contentDescription = "Mute notifications for 15 minutes"
                         )
                     }
                     IconButton(onClick = { overflowExpanded = true }) {
@@ -281,6 +281,15 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                     snapshot = snapshot,
                     events = events,
                     mode = dashboardState.mode,
+                    onPersistentListenerChanged = { enabled ->
+                        if (enabled) {
+                            PersistentConnectionService.start(context)
+                            dashboardVm.setMode(ConnectionMode.PERSISTENT_FOREGROUND)
+                        } else {
+                            PersistentConnectionService.stop(context)
+                            dashboardVm.setMode(ConnectionMode.VISIBLE_ONLY)
+                        }
+                    },
                     onStartStop = {
                         if (snapshot.status == ConnectionStatus.CONNECTED) stopListener() else startListener()
                     }
@@ -302,6 +311,7 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                         toast("Notification mute cleared")
                     },
                     onThemeChanged = vm::setThemePreference,
+                    onKeepHistoryIndefinitelyChanged = vm::setKeepHistoryIndefinitely,
                     onPersistentListenerChanged = { enabled ->
                         if (enabled) {
                             PersistentConnectionService.start(context)
@@ -311,7 +321,6 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
                             dashboardVm.setMode(ConnectionMode.VISIBLE_ONLY)
                         }
                     },
-                    onOpenServiceStatus = { navController.navigate(Routes.SERVICE_STATUS) },
                     onOpenBatterySettings = appChromeViewModel::openBatteryOptimizationSettings
                 )
             }

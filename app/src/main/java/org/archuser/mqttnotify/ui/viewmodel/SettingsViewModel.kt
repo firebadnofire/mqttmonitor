@@ -10,12 +10,15 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.archuser.mqttnotify.core.TimeProvider
 import org.archuser.mqttnotify.domain.model.ConnectionMode
+import org.archuser.mqttnotify.domain.model.RetentionPolicy
 import org.archuser.mqttnotify.domain.model.ThemePreference
 import org.archuser.mqttnotify.domain.repo.AppStateRepository
+import org.archuser.mqttnotify.domain.repo.RetentionRepository
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val appStateRepository: AppStateRepository,
+    private val retentionRepository: RetentionRepository,
     private val timeProvider: TimeProvider
 ) : ViewModel() {
 
@@ -30,9 +33,14 @@ class SettingsViewModel @Inject constructor(
                     muted = muted,
                     muteUntil = appState.globalMuteUntil,
                     themePreference = appState.themePreference,
-                    connectionMode = appState.connectionMode
+                    connectionMode = appState.connectionMode,
+                    keepHistoryIndefinitely = _state.value.keepHistoryIndefinitely
                 )
             }
+        }
+
+        viewModelScope.launch {
+            refreshRetentionState()
         }
     }
 
@@ -44,7 +52,10 @@ class SettingsViewModel @Inject constructor(
 
     fun muteFor(minutes: Int) {
         viewModelScope.launch {
-            val until = timeProvider.nowMillis() + minutes.coerceAtLeast(1) * 60_000L
+            val now = timeProvider.nowMillis()
+            val currentUntil = appStateRepository.currentState().globalMuteUntil
+            val base = currentUntil?.takeIf { it > now } ?: now
+            val until = base + minutes.coerceAtLeast(1) * 60_000L
             appStateRepository.setGlobalMuteUntil(until)
         }
     }
@@ -54,11 +65,34 @@ class SettingsViewModel @Inject constructor(
             appStateRepository.setThemePreference(preference)
         }
     }
+
+    fun setKeepHistoryIndefinitely(enabled: Boolean) {
+        viewModelScope.launch {
+            val current = retentionRepository.globalDefaultPolicy()
+            retentionRepository.upsertPolicy(
+                RetentionPolicy(
+                    id = current.id,
+                    brokerId = null,
+                    topicFilter = null,
+                    maxMessages = current.maxMessages,
+                    maxAgeDays = current.maxAgeDays,
+                    trimOnInsert = !enabled
+                )
+            )
+            refreshRetentionState()
+        }
+    }
+
+    private suspend fun refreshRetentionState() {
+        val policy = retentionRepository.globalDefaultPolicy()
+        _state.value = _state.value.copy(keepHistoryIndefinitely = !policy.trimOnInsert)
+    }
 }
 
 data class SettingsUiState(
     val muted: Boolean = false,
     val muteUntil: Long? = null,
     val themePreference: ThemePreference = ThemePreference.SYSTEM,
-    val connectionMode: ConnectionMode = ConnectionMode.VISIBLE_ONLY
+    val connectionMode: ConnectionMode = ConnectionMode.VISIBLE_ONLY,
+    val keepHistoryIndefinitely: Boolean = false
 )

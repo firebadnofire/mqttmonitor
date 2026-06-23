@@ -51,6 +51,7 @@ class BrokerRepositoryImplTest {
 
     private class FakeRetentionRepository : RetentionRepository {
         override suspend fun policyForTopic(brokerId: Long, topic: String) = throw NotImplementedError()
+        override suspend fun globalDefaultPolicy() = throw NotImplementedError()
         override suspend fun upsertPolicy(policy: org.archuser.mqttnotify.domain.model.RetentionPolicy): Long = 1L
         override suspend fun ensureDefaultForBroker(brokerId: Long) {}
     }

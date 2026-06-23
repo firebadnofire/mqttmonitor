@@ -11,6 +11,9 @@ interface MessageDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entity: MessageEntity): Long
 
+    @Query("SELECT * FROM messages ORDER BY received_at DESC LIMIT 500")
+    fun observeRecent(): Flow<List<MessageEntity>>
+
     @Query("SELECT * FROM messages WHERE broker_id = :brokerId ORDER BY received_at DESC LIMIT 500")
     fun observeForBroker(brokerId: Long): Flow<List<MessageEntity>>
 

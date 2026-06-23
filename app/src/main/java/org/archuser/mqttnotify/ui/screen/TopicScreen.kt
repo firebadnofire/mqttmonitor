@@ -34,11 +34,11 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import org.archuser.mqttnotify.ui.theme.WarningAmber
-import org.archuser.mqttnotify.ui.theme.WarningAmberSoft
 import org.archuser.mqttnotify.domain.model.ConnectionSnapshot
 import org.archuser.mqttnotify.domain.model.ConnectionStatus
 import org.archuser.mqttnotify.domain.model.InboundMessageRecord
+import org.archuser.mqttnotify.ui.theme.warningAccentColor
+import org.archuser.mqttnotify.ui.theme.warningSurfaceColor
 import org.archuser.mqttnotify.ui.viewmodel.ChannelForm
 import org.archuser.mqttnotify.ui.viewmodel.ChannelUiState
 
@@ -56,6 +56,8 @@ fun ChannelListScreen(
     onStartListener: () -> Unit,
     onViewService: () -> Unit
 ) {
+    val formatter = SimpleDateFormat("EEE MMM dd HH:mm:ss", Locale.US)
+
     LazyColumn(
         modifier = Modifier.padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -102,15 +104,21 @@ fun ChannelListScreen(
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Text(channel.displayName, style = MaterialTheme.typography.subtitle1)
-                                Text(if (channel.notifyEnabled) "bell" else "muted", style = MaterialTheme.typography.caption)
+                                Text(
+                                    if (channel.notifyEnabled) "Notifications on" else "Notifications off",
+                                    style = MaterialTheme.typography.caption
+                                )
                             }
                             Text(
                                 text = channel.topicFilter,
                                 style = MaterialTheme.typography.body2,
                                 fontFamily = FontFamily.Monospace
                             )
+                            val latestMessage = state.messages.firstOrNull { it.topic == channel.topicFilter }
                             Text(
-                                text = "No messages yet",
+                                text = latestMessage?.let { message ->
+                                    "${formatter.format(Date(message.receivedAt))}: ${message.payloadPreview.ifBlank { "<empty payload>" }}"
+                                } ?: "No messages yet",
                                 style = MaterialTheme.typography.caption
                             )
                         }
@@ -242,9 +250,13 @@ private fun ListenerBanner(snapshot: ConnectionSnapshot, onStart: () -> Unit, on
                 Button(onClick = onViewService) { Text("VIEW") }
             }
         }
-        else -> Card(elevation = 1.dp, backgroundColor = WarningAmberSoft) {
+        else -> Card(elevation = 1.dp, backgroundColor = warningSurfaceColor()) {
             Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("MQTT listener is stopped", style = MaterialTheme.typography.subtitle1)
+                Text(
+                    "MQTT listener is stopped",
+                    style = MaterialTheme.typography.subtitle1,
+                    color = warningAccentColor()
+                )
                 Text("No brokers are currently connected.")
                 Button(onClick = onStart) { Text("START") }
             }
@@ -277,7 +289,7 @@ private fun MessageRow(message: InboundMessageRecord, timestamp: String, onDelet
                 fontFamily = FontFamily.Monospace
             )
             if (message.retained) {
-                Text("Retained", color = WarningAmber)
+                Text("Retained", color = warningAccentColor())
             }
             Spacer(modifier = Modifier.height(2.dp))
             OutlinedButton(onClick = { onDelete(message.id) }) {

@@ -38,14 +38,15 @@ class MainActivity : ComponentActivity() {
                         title = { Text("Battery optimization") },
                         text = {
                             Text(
-                                "MQTT Notify needs to stay connected in the background to receive broker messages in real time. " +
-                                    "Android may stop background apps to save battery. Allowing unrestricted background battery " +
-                                    "use improves reliability, especially when the screen is off."
+                                "Persistent foreground mode works without a special foreground permission. " +
+                                    "This request only asks Android to exempt MQTT Notify from battery optimization. " +
+                                    "That can improve background reliability, especially with the screen off, but it is optional " +
+                                    "and does not guarantee delivery."
                             )
                         },
                         confirmButton = {
                             TextButton(onClick = appChromeViewModel::requestIgnoreBatteryOptimizations) {
-                                Text("Allow background listening")
+                                Text("Request battery exemption")
                             }
                         },
                         dismissButton = {

@@ -14,14 +14,6 @@ jobs:
       options: --network ci-network
 
     steps:
-      - name: Report runner architecture
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          echo "Runner architecture: ${RUNNER_ARCH:-unknown}"
-          echo "Container architecture: $(dpkg --print-architecture)"
-
       - name: Prepare APT and action runtime
         shell: bash
         run: |
@@ -31,40 +23,20 @@ jobs:
           tee_cmd="tee"
           install_cmd="install"
           chmod_cmd="chmod"
-          mkdir_cmd="mkdir"
-          ln_cmd="ln"
           if command -v sudo >/dev/null 2>&1; then
             apt_get="sudo apt-get"
             tee_cmd="sudo tee"
             install_cmd="sudo install"
             chmod_cmd="sudo chmod"
-            mkdir_cmd="sudo mkdir"
-            ln_cmd="sudo ln"
           fi
 
-          container_arch="$(dpkg --print-architecture)"
-
-          if [ "$container_arch" = "arm64" ]; then
-            dpkg --add-architecture amd64
-            printf '%s\n' \
-              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main universe' \
-              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main universe' \
-              'deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main universe' \
-              | $tee_cmd /etc/apt/sources.list.d/amd64.list >/dev/null
-          fi
+          {
+            echo 'Acquire::http::Proxy "http://apt-cacher-ng:3142";'
+            echo 'Acquire::https::Proxy "http://apt-cacher-ng:3142";'
+          } | $tee_cmd /etc/apt/apt.conf.d/01proxy >/dev/null
 
           $apt_get update
           $apt_get install -y --no-install-recommends ca-certificates curl git gnupg jq unzip
-
-          if [ "$container_arch" = "arm64" ]; then
-            $apt_get install -y --no-install-recommends \
-              libc6:amd64 \
-              libgcc-s1:amd64 \
-              libstdc++6:amd64 \
-              zlib1g:amd64
-            $mkdir_cmd -p /lib64
-            $ln_cmd -sf /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
-          fi
 
           needs_node=1
           if command -v node >/dev/null 2>&1; then
@@ -99,20 +71,7 @@ jobs:
           java-version: "17"
 
       - name: Set up Android SDK
-        uses: https://github.com/android-actions/setup-android@v4
-        with:
-          packages: ""
-          log-accepted-android-sdk-licenses: false
-
-      - name: Install Android SDK packages
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          sdkmanager --install \
-            "platform-tools" \
-            "platforms;android-36" \
-            "build-tools;35.0.0"
+        uses: https://github.com/android-actions/setup-android@v3
 
       - name: Validate release inputs
         shell: bash
@@ -188,15 +147,8 @@ jobs:
             echo "Release keystore was not decoded at $RELEASE_KEYSTORE_PATH" >&2
             exit 1
           fi
-          sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/root/.android/sdk}}"
-          build_tools_dir="$(find "${sdk_root}/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)"
-          aapt2_override="${build_tools_dir}/aapt2"
-          if [ ! -x "$aapt2_override" ]; then
-            echo "AAPT2 override binary was not found at $aapt2_override" >&2
-            exit 1
-          fi
           chmod +x ./gradlew
-          ./gradlew --no-daemon -Pandroid.aapt2FromMavenOverride="$aapt2_override" assembleRelease
+          ./gradlew --no-daemon assembleRelease
 
       - name: Prepare release asset
         shell: bash

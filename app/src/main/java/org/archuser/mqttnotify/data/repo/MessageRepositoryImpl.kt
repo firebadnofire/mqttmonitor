@@ -29,6 +29,9 @@ class MessageRepositoryImpl @Inject constructor(
     private val dispatchers: DispatchersProvider
 ) : MessageRepository {
 
+    override fun observeRecentMessages(): Flow<List<InboundMessageRecord>> =
+        messageDao.observeRecent().map { list -> list.map { it.toModel() } }
+
     override fun observeMessagesForBroker(brokerId: Long): Flow<List<InboundMessageRecord>> =
         messageDao.observeForBroker(brokerId).map { list -> list.map { it.toModel() } }
 
@@ -45,6 +48,7 @@ class MessageRepositoryImpl @Inject constructor(
 
         val hideRetained = matchingConfig?.hideRetained ?: true
         val retainedAsNew = matchingConfig?.retainedAsNew ?: false
+        val storageTopic = matchingConfig?.topicFilter ?: event.topic
         if (event.retained && hideRetained) {
             return@withContext InboundMessageRecord(
                 id = 0,
@@ -69,7 +73,7 @@ class MessageRepositoryImpl @Inject constructor(
 
         val entity = MessageEntity(
             brokerId = brokerId,
-            topicFilter = event.topic,
+            topicFilter = storageTopic,
             receivedAt = timeProvider.nowMillis(),
             payloadBlob = event.payload,
             payloadTextPreview = preview,
@@ -83,23 +87,23 @@ class MessageRepositoryImpl @Inject constructor(
 
         val insertedId = messageDao.insert(entity)
 
-        val currentCounter = topicCounterDao.getCounter(brokerId, event.topic)
+        val currentCounter = topicCounterDao.getCounter(brokerId, storageTopic)
         val nextCounter = TopicCounterEntity(
             brokerId = brokerId,
-            topicFilter = event.topic,
+            topicFilter = storageTopic,
             unreadCount = (currentCounter?.unreadCount ?: 0) + if (isNewActivity) 1 else 0,
             totalCount = (currentCounter?.totalCount ?: 0) + 1
         )
         topicCounterDao.upsert(nextCounter)
 
-        val policy = retentionRepository.policyForTopic(brokerId, event.topic)
+        val policy = retentionRepository.policyForTopic(brokerId, storageTopic)
         if (policy.trimOnInsert) {
             val cutoff = timeProvider.nowMillis() - policy.maxAgeDays * DAY_MS
-            messageDao.deleteOlderThan(brokerId, event.topic, cutoff)
+            messageDao.deleteOlderThan(brokerId, storageTopic, cutoff)
 
-            val currentCount = messageDao.countForTopic(brokerId, event.topic)
+            val currentCount = messageDao.countForTopic(brokerId, storageTopic)
             if (currentCount > policy.maxMessages) {
-                messageDao.deleteOverflowForTopic(brokerId, event.topic, policy.maxMessages)
+                messageDao.deleteOverflowForTopic(brokerId, storageTopic, policy.maxMessages)
             }
         }
 

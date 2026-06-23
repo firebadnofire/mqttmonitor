@@ -43,13 +43,12 @@ class AppChromeViewModel @Inject constructor(
         }
     }
 
-    fun toggleMute() {
+    fun extendMute() {
         viewModelScope.launch {
-            if (_muted.value) {
-                appStateRepository.setGlobalMuteUntil(null)
-            } else {
-                appStateRepository.setGlobalMuteUntil(timeProvider.nowMillis() + TEMP_MUTE_MS)
-            }
+            val now = timeProvider.nowMillis()
+            val currentUntil = appStateRepository.currentState().globalMuteUntil
+            val base = currentUntil?.takeIf { it > now } ?: now
+            appStateRepository.setGlobalMuteUntil(base + TEMP_MUTE_MS)
         }
     }
 

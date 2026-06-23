@@ -5,6 +5,7 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.Button
 import androidx.compose.material.Card
 import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -20,13 +22,14 @@ import androidx.compose.ui.unit.dp
 import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.ConnectionSnapshot
 import org.archuser.mqttnotify.domain.model.ConnectionStatus
-import org.archuser.mqttnotify.ui.theme.WarningAmber
+import org.archuser.mqttnotify.ui.theme.warningAccentColor
 
 @Composable
 fun DiagnosticsScreen(
     snapshot: ConnectionSnapshot,
     events: List<String>,
     mode: ConnectionMode,
+    onPersistentListenerChanged: (Boolean) -> Unit,
     onStartStop: () -> Unit
 ) {
     val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
@@ -45,12 +48,19 @@ fun DiagnosticsScreen(
                 Text("Started at: ${snapshot.connectedSince?.let { formatter.format(Date(it)) } ?: "Not running"}")
                 Text(
                     "Persistent listener: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND) "Enabled" else "Disabled"}",
-                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND) MaterialTheme.colors.onSurface else WarningAmber
+                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND) MaterialTheme.colors.onSurface else warningAccentColor()
                 )
                 Text(
                     "Foreground notification: ${if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) "Visible" else "Not visible"}",
-                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) MaterialTheme.colors.onSurface else WarningAmber
+                    color = if (mode == ConnectionMode.PERSISTENT_FOREGROUND && running) MaterialTheme.colors.onSurface else warningAccentColor()
                 )
+                Row {
+                    Switch(
+                        checked = mode == ConnectionMode.PERSISTENT_FOREGROUND,
+                        onCheckedChange = onPersistentListenerChanged
+                    )
+                    Text("Persistent listener")
+                }
                 Text("Message count: ${snapshot.messageCount}")
                 snapshot.lastError?.let { Text("Last error: $it", color = MaterialTheme.colors.error) }
                 Button(onClick = onStartStop) {

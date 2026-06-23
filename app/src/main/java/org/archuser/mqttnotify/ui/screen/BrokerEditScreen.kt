@@ -25,7 +25,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import org.archuser.mqttnotify.ui.theme.ErrorRed
 import org.archuser.mqttnotify.ui.theme.SuccessGreen
-import org.archuser.mqttnotify.ui.theme.WarningAmber
+import org.archuser.mqttnotify.ui.theme.warningAccentColor
+import org.archuser.mqttnotify.ui.theme.warningSurfaceColor
 import org.archuser.mqttnotify.ui.viewmodel.BrokerEditUiState
 
 @Composable
@@ -151,6 +152,7 @@ fun BrokerEditScreen(
     }
 }
 
+@Composable
 private fun brokerStatusTone(message: String): StatusTone = when {
     message.contains("passed", ignoreCase = true) ||
         message.contains("successful", ignoreCase = true) ||
@@ -168,8 +170,8 @@ private fun brokerStatusTone(message: String): StatusTone = when {
     )
 
     else -> StatusTone(
-        background = WarningAmber,
-        foreground = Color.Black
+        background = warningSurfaceColor(),
+        foreground = warningAccentColor()
     )
 }
 

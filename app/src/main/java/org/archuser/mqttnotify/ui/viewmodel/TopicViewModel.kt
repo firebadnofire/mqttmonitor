@@ -32,7 +32,13 @@ class TopicViewModel @Inject constructor(
             }
         }
 
-        if (channelId != 0L) {
+        if (channelId == 0L) {
+            viewModelScope.launch {
+                messageRepository.observeRecentMessages().collect { messages ->
+                    _state.value = _state.value.copy(messages = messages)
+                }
+            }
+        } else {
             viewModelScope.launch {
                 topicRepository.getChannel(channelId)?.let { channel ->
                     _state.value = _state.value.copy(editing = channel, form = ChannelForm.from(channel))

@@ -21,6 +21,11 @@ class RetentionRepositoryImpl @Inject constructor(
             ?: defaultGlobalPolicy().also { retentionDao.upsert(it.toEntity()) }
     }
 
+    override suspend fun globalDefaultPolicy(): RetentionPolicy = withContext(dispatchers.io) {
+        retentionDao.getGlobalDefault()?.toModel()
+            ?: defaultGlobalPolicy().also { retentionDao.upsert(it.toEntity()) }
+    }
+
     override suspend fun upsertPolicy(policy: RetentionPolicy): Long = withContext(dispatchers.io) {
         retentionDao.upsert(policy.toEntity())
     }

@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import org.archuser.mqttnotify.domain.model.BatteryOptimizationState
 import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.ThemePreference
-import org.archuser.mqttnotify.ui.theme.WarningAmber
+import org.archuser.mqttnotify.ui.theme.warningAccentColor
 import org.archuser.mqttnotify.ui.viewmodel.SettingsUiState
 
 @Composable
@@ -34,8 +34,8 @@ fun SettingsScreen(
     onMuteForMinutes: (Int) -> Unit,
     onClearMute: () -> Unit,
     onThemeChanged: (ThemePreference) -> Unit,
+    onKeepHistoryIndefinitelyChanged: (Boolean) -> Unit,
     onPersistentListenerChanged: (Boolean) -> Unit,
-    onOpenServiceStatus: () -> Unit,
     onOpenBatterySettings: () -> Unit
 ) {
     val formattedMuteUntil = state.muteUntil?.let {
@@ -72,7 +72,7 @@ fun SettingsScreen(
         SettingsCard("Notifications") {
             Text(
                 if (state.muted) "Global mute active until $formattedMuteUntil" else "Global mute is off",
-                color = if (state.muted) WarningAmber else MaterialTheme.colors.onSurface
+                color = if (state.muted) warningAccentColor() else MaterialTheme.colors.onSurface
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { onMuteForMinutes(15) }) { Text("MUTE 15 MIN") }
@@ -82,7 +82,14 @@ fun SettingsScreen(
         }
 
         SettingsCard("History") {
-            Text("Keep history: 30 days")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Switch(
+                    checked = state.keepHistoryIndefinitely,
+                    onCheckedChange = onKeepHistoryIndefinitelyChanged
+                )
+                Text("Keep history indefinitely")
+            }
+            Text(if (state.keepHistoryIndefinitely) "Automatic trimming is off." else "Keep history: 30 days")
             Text("Messages are stored locally inside each channel feed.")
         }
 
@@ -92,13 +99,15 @@ fun SettingsScreen(
                 color = if (batteryOptimizationState == BatteryOptimizationState.UNRESTRICTED) {
                     MaterialTheme.colors.onSurface
                 } else {
-                    WarningAmber
+                    warningAccentColor()
                 }
             )
-            Text("Android may stop the listener while the phone is idle.", style = MaterialTheme.typography.caption)
+            Text(
+                "Battery exemption is optional. It can improve persistent-listener reliability, but Android may still limit background work.",
+                style = MaterialTheme.typography.caption
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = onOpenBatterySettings) { Text("ALLOW BACKGROUND LISTENING") }
-                OutlinedButton(onClick = onOpenServiceStatus) { Text("OPEN SERVICE STATUS") }
+                Button(onClick = onOpenBatterySettings) { Text("REQUEST BATTERY EXEMPTION") }
             }
         }
     }

@@ -16,7 +16,7 @@
 MQTT Monitor is an Android monitoring terminal for users who run their own MQTT brokers. It is receive-focused, stores inbound messages locally, and can raise per-topic Android notifications while a real MQTT connection is active.
 
 - Application ID: `org.archuser.mqttnotify`
-- Current Version: `1.3.2` (versionCode `7`)
+- Current Version: `1.3.5` (versionCode `9`)
 - Language: Kotlin
 - UI: Jetpack Compose
 - Min SDK: 26

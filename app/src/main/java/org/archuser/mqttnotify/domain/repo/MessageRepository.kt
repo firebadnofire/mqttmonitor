@@ -5,6 +5,7 @@ import org.archuser.mqttnotify.data.mqtt.MqttEvent
 import org.archuser.mqttnotify.domain.model.InboundMessageRecord
 
 interface MessageRepository {
+    fun observeRecentMessages(): Flow<List<InboundMessageRecord>>
     fun observeMessagesForBroker(brokerId: Long): Flow<List<InboundMessageRecord>>
     fun observeMessagesForTopic(topic: String): Flow<List<InboundMessageRecord>>
     suspend fun ingestMessage(brokerId: Long, event: MqttEvent.MessageReceived): InboundMessageRecord
