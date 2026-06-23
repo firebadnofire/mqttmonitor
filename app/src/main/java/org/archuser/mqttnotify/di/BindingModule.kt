@@ -32,7 +32,7 @@ import org.archuser.mqttnotify.notifications.NotificationControllerImpl
 @InstallIn(SingletonComponent::class)
 abstract class BindingModule {
 
-    @Binds @Singleton abstract fun bindMqttClientAdapter(impl: HiveMqttClientAdapter): MqttClientAdapter
+    @Binds abstract fun bindMqttClientAdapter(impl: HiveMqttClientAdapter): MqttClientAdapter
     @Binds @Singleton abstract fun bindConnectionTester(impl: HiveBrokerConnectionTester): BrokerConnectionTester
     @Binds @Singleton abstract fun bindCredentialsStore(impl: EncryptedCredentialsStore): CredentialsStore
     @Binds @Singleton abstract fun bindNotificationController(impl: NotificationControllerImpl): NotificationController

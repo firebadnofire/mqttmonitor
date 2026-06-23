@@ -18,7 +18,6 @@ import kotlinx.coroutines.sync.withLock
 import org.archuser.mqttnotify.core.DispatchersProvider
 import org.archuser.mqttnotify.core.TimeProvider
 import org.archuser.mqttnotify.core.TopicMatcher
-import org.archuser.mqttnotify.data.mqtt.HiveMqttClientAdapter
 import org.archuser.mqttnotify.data.mqtt.MqttClientAdapter
 import org.archuser.mqttnotify.data.mqtt.MqttEvent
 import org.archuser.mqttnotify.data.security.CredentialsStore
@@ -36,7 +35,7 @@ import org.archuser.mqttnotify.notifications.NotificationController
 
 @Singleton
 class ConnectionCoordinatorImpl @Inject constructor(
-    private val mqttClientAdapterProvider: Provider<HiveMqttClientAdapter>,
+    private val mqttClientAdapterProvider: Provider<MqttClientAdapter>,
     private val brokerRepository: BrokerRepository,
     private val topicRepository: TopicRepository,
     private val messageRepository: MessageRepository,
@@ -209,7 +208,8 @@ class ConnectionCoordinatorImpl @Inject constructor(
             return
         }
 
-        val wanted = topics.filter { it.enabled }.map { it.topicFilter }.toSet()
+        val brokerTopics = topics.filter { it.brokerId == session.broker.id && it.enabled }
+        val wanted = brokerTopics.map { it.topicFilter }.toSet()
         val toAdd = wanted - session.subscribedTopics
         val toRemove = session.subscribedTopics - wanted
 
@@ -219,7 +219,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
             }
         }
         toAdd.forEach { topic ->
-            val qos = topics.firstOrNull { it.topicFilter == topic }?.qos ?: 1
+            val qos = brokerTopics.firstOrNull { it.topicFilter == topic }?.qos ?: 1
             if (session.adapter.subscribe(topic, qos).isSuccess) {
                 session.subscribedTopics.add(topic)
             }
@@ -228,18 +228,35 @@ class ConnectionCoordinatorImpl @Inject constructor(
 
     private suspend fun handleBrokerEvent(brokerId: Long, event: MqttEvent) {
         when (event) {
-            is MqttEvent.ConnectionChanged -> lock.withLock {
-                val session = brokerSessions[brokerId]
-                if (session != null) {
-                    session.status = event.status
-                    if (event.status == ConnectionStatus.CONNECTED && session.connectedSince == null) {
-                        session.connectedSince = timeProvider.nowMillis()
+            is MqttEvent.ConnectionChanged -> {
+                var shouldReconnect = false
+                var shouldResubscribe = false
+                lock.withLock {
+                    val session = brokerSessions[brokerId]
+                    if (session != null) {
+                        session.status = event.status
+                        if (event.status == ConnectionStatus.CONNECTED) {
+                            if (session.connectedSince == null) {
+                                session.connectedSince = timeProvider.nowMillis()
+                            }
+                            shouldResubscribe = true
+                        }
+                        if (event.status == ConnectionStatus.DISCONNECTED) {
+                            session.connectedSince = null
+                            session.subscribedTopics.clear()
+                            shouldReconnect = true
+                        }
+                        updateSnapshotLocked()
                     }
-                    if (event.status == ConnectionStatus.DISCONNECTED) {
-                        session.connectedSince = null
-                        session.subscribedTopics.clear()
+                }
+                if (shouldResubscribe) {
+                    val session = lock.withLock { brokerSessions[brokerId] }
+                    if (session != null) {
+                        syncSubscriptions(session, activeTopics)
                     }
-                    updateSnapshotLocked()
+                }
+                if (shouldReconnect) {
+                    reconcileSignal.tryEmit(Unit)
                 }
             }
             is MqttEvent.MessageReceived -> handleMessage(brokerId, event)
@@ -276,7 +293,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
         val record = messageRepository.ingestMessage(brokerId, event)
 
         val matchedTopic = topics
-            .filter { it.notifyEnabled && TopicMatcher.matches(it.topicFilter, event.topic) }
+            .filter { it.brokerId == brokerId && it.notifyEnabled && TopicMatcher.matches(it.topicFilter, event.topic) }
             .maxByOrNull { it.topicFilter.length }
 
         val appState = appStateRepository.currentState()

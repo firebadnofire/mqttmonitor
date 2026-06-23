@@ -6,6 +6,7 @@ import com.hivemq.client.mqtt.mqtt3.Mqtt3AsyncClient
 import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish
 import com.hivemq.client.mqtt.mqtt5.Mqtt5AsyncClient
 import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -26,6 +27,7 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
     private val eventsFlow = MutableSharedFlow<MqttEvent>(extraBufferCapacity = 256)
     private val lock = Mutex()
     private val callbackScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val manualDisconnect = AtomicBoolean(false)
 
     private var activeClient: ConnectedClient? = null
 
@@ -97,6 +99,9 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
                 .useMqttVersion5()
                 .serverHost(config.host)
                 .serverPort(config.port)
+                .addDisconnectedListener { context ->
+                    onDisconnected(context.source.name, context.cause)
+                }
 
             if (!config.clientId.isNullOrBlank()) {
                 builder.identifier(config.clientId)
@@ -134,6 +139,9 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
                 .useMqttVersion3()
                 .serverHost(config.host)
                 .serverPort(config.port)
+                .addDisconnectedListener { context ->
+                    onDisconnected(context.source.name, context.cause)
+                }
 
             if (!config.clientId.isNullOrBlank()) {
                 builder.identifier(config.clientId)
@@ -166,15 +174,39 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
     }
 
     private suspend fun disconnectInternal() = withContext(Dispatchers.IO) {
-        runCatching {
-            when (val client = activeClient) {
-                is ConnectedClient.V5 -> client.client.disconnectWith().send().join()
-                is ConnectedClient.V3 -> client.client.disconnect().join()
-                null -> Unit
+        manualDisconnect.set(true)
+        try {
+            runCatching {
+                when (val client = activeClient) {
+                    is ConnectedClient.V5 -> client.client.disconnectWith().send().join()
+                    is ConnectedClient.V3 -> client.client.disconnect().join()
+                    null -> Unit
+                }
             }
+        } finally {
+            activeClient = null
+            eventsFlow.tryEmit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+            manualDisconnect.set(false)
         }
-        activeClient = null
-        eventsFlow.tryEmit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+    }
+
+    private fun onDisconnected(source: String, cause: Throwable) {
+        if (manualDisconnect.get()) {
+            return
+        }
+        callbackScope.launch {
+            val wasConnected = lock.withLock { activeClient != null }
+            if (!wasConnected) {
+                return@launch
+            }
+            eventsFlow.emit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+            eventsFlow.emit(
+                MqttEvent.Error(
+                    "MQTT connection dropped ($source): ${cause.message ?: cause.javaClass.simpleName}",
+                    cause
+                )
+            )
+        }
     }
 
     private fun onV5Message(publish: Mqtt5Publish) {
