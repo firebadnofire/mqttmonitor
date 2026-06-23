@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.archuser.mqttnotify.core.DispatchersProvider
 import org.archuser.mqttnotify.core.TimeProvider
 import org.archuser.mqttnotify.data.mqtt.MqttClientAdapter
@@ -21,6 +22,7 @@ import org.archuser.mqttnotify.domain.model.AppState
 import org.archuser.mqttnotify.domain.model.BrokerConfig
 import org.archuser.mqttnotify.domain.model.ConnectionMode
 import org.archuser.mqttnotify.domain.model.ConnectionSnapshot
+import org.archuser.mqttnotify.domain.model.ConnectionStatus
 import org.archuser.mqttnotify.domain.model.InboundMessageRecord
 import org.archuser.mqttnotify.domain.model.ProtocolVersion
 import org.archuser.mqttnotify.domain.model.ThemePreference
@@ -55,12 +57,30 @@ class ConnectionCoordinatorImplTest {
         assertEquals(1, firstAdapter.connectCount)
         assertEquals(listOf("alerts/home"), firstAdapter.subscriptions)
 
-        firstAdapter.emit(MqttEvent.ConnectionChanged(org.archuser.mqttnotify.domain.model.ConnectionStatus.DISCONNECTED))
+        firstAdapter.emit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
         advanceUntilIdle()
 
         assertEquals(2, provider.created.size)
         assertEquals(1, provider.created.last().connectCount)
         assertEquals(listOf("alerts/home"), provider.created.last().subscriptions)
+    }
+
+    @Test
+    fun `startup disconnected event does not trigger duplicate reconnect`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val provider = FakeAdapterProvider(emitDisconnectedDuringConnect = true)
+        val coordinator = createCoordinator(
+            dispatcher = dispatcher,
+            adapterProvider = provider,
+            brokers = listOf(testBroker(1, "Home MQTT")),
+            topics = listOf(testTopic(1, 1, "alerts/home"))
+        )
+
+        coordinator.startPersistent()
+        advanceUntilIdle()
+
+        assertEquals(1, provider.created.size)
+        assertEquals(1, provider.created.single().connectCount)
     }
 
     @Test
@@ -161,13 +181,18 @@ class ConnectionCoordinatorImplTest {
         )
     }
 
-    private class FakeAdapterProvider : Provider<MqttClientAdapter> {
+    private class FakeAdapterProvider(
+        private val emitDisconnectedDuringConnect: Boolean = false
+    ) : Provider<MqttClientAdapter> {
         val created = mutableListOf<FakeMqttClientAdapter>()
 
-        override fun get(): MqttClientAdapter = FakeMqttClientAdapter().also(created::add)
+        override fun get(): MqttClientAdapter =
+            FakeMqttClientAdapter(emitDisconnectedDuringConnect).also(created::add)
     }
 
-    private class FakeMqttClientAdapter : MqttClientAdapter {
+    private class FakeMqttClientAdapter(
+        private val emitDisconnectedDuringConnect: Boolean
+    ) : MqttClientAdapter {
         private val events = MutableSharedFlow<MqttEvent>(extraBufferCapacity = 16)
         val subscriptions = mutableListOf<String>()
         var connectCount = 0
@@ -175,6 +200,10 @@ class ConnectionCoordinatorImplTest {
 
         override suspend fun connect(config: BrokerConfig, password: String?): Result<Unit> {
             connectCount += 1
+            if (emitDisconnectedDuringConnect) {
+                events.emit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+                yield()
+            }
             return Result.success(Unit)
         }
 

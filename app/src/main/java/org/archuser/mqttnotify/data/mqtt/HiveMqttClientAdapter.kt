@@ -32,7 +32,7 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
     private var activeClient: ConnectedClient? = null
 
     override suspend fun connect(config: BrokerConfig, password: String?): Result<Unit> = lock.withLock {
-        disconnectInternal()
+        disconnectInternal(emitStatus = activeClient != null)
         eventsFlow.tryEmit(MqttEvent.ConnectionChanged(ConnectionStatus.CONNECTING))
 
         return when (config.protocolVersion) {
@@ -47,7 +47,7 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
     }
 
     override suspend fun disconnect() {
-        lock.withLock { disconnectInternal() }
+        lock.withLock { disconnectInternal(emitStatus = true) }
     }
 
     override suspend fun subscribe(topic: String, qos: Int): Result<Unit> = withContext(Dispatchers.IO) {
@@ -173,7 +173,7 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
         }
     }
 
-    private suspend fun disconnectInternal() = withContext(Dispatchers.IO) {
+    private suspend fun disconnectInternal(emitStatus: Boolean) = withContext(Dispatchers.IO) {
         manualDisconnect.set(true)
         try {
             runCatching {
@@ -185,7 +185,9 @@ class HiveMqttClientAdapter @Inject constructor() : MqttClientAdapter {
             }
         } finally {
             activeClient = null
-            eventsFlow.tryEmit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+            if (emitStatus) {
+                eventsFlow.tryEmit(MqttEvent.ConnectionChanged(ConnectionStatus.DISCONNECTED))
+            }
             manualDisconnect.set(false)
         }
     }

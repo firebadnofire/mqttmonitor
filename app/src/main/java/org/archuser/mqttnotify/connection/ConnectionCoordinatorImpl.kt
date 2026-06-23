@@ -234,6 +234,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
                 lock.withLock {
                     val session = brokerSessions[brokerId]
                     if (session != null) {
+                        val wasConnected = session.status == ConnectionStatus.CONNECTED || session.connectedSince != null
                         session.status = event.status
                         if (event.status == ConnectionStatus.CONNECTED) {
                             if (session.connectedSince == null) {
@@ -244,7 +245,7 @@ class ConnectionCoordinatorImpl @Inject constructor(
                         if (event.status == ConnectionStatus.DISCONNECTED) {
                             session.connectedSince = null
                             session.subscribedTopics.clear()
-                            shouldReconnect = true
+                            shouldReconnect = wasConnected
                         }
                         updateSnapshotLocked()
                     }
