@@ -10,8 +10,8 @@ jobs:
   release:
     runs-on: ubuntu-22.04
     container:
-      image: amd64/ubuntu:22.04
-      options: --network ci-network
+      image: ubuntu:22.04
+      options: --platform linux/amd64 --network ci-network
 
     steps:
       - name: Prepare APT and action runtime
