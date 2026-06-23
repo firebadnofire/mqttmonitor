@@ -109,6 +109,26 @@ class ConnectionCoordinatorImplTest {
         assertEquals(listOf("alerts/vps"), provider.created[1].subscriptions)
     }
 
+    @Test
+    fun `visible mode connects when explicit visible session starts`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val provider = FakeAdapterProvider()
+        val coordinator = createCoordinator(
+            dispatcher = dispatcher,
+            adapterProvider = provider,
+            brokers = listOf(testBroker(1, "Home MQTT")),
+            topics = listOf(testTopic(1, 1, "alerts/home"))
+        )
+
+        coordinator.setMode(ConnectionMode.VISIBLE_ONLY)
+        coordinator.onUiVisibilityChanged(true)
+        advanceUntilIdle()
+
+        assertEquals(1, provider.created.size)
+        assertEquals(1, provider.created.single().connectCount)
+        assertEquals(listOf("alerts/home"), provider.created.single().subscriptions)
+    }
+
     private fun createCoordinator(
         dispatcher: StandardTestDispatcher,
         adapterProvider: FakeAdapterProvider,

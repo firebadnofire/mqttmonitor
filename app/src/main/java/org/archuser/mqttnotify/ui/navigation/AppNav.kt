@@ -76,7 +76,7 @@ fun AppNav(appChromeViewModel: AppChromeViewModel) {
         if (dashboardState.mode == ConnectionMode.PERSISTENT_FOREGROUND) {
             PersistentConnectionService.start(context)
         } else {
-            dashboardVm.setMode(ConnectionMode.VISIBLE_ONLY)
+            dashboardVm.startVisibleListener()
         }
         toast("Listener start requested")
     }

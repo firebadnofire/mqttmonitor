@@ -69,6 +69,13 @@ class DashboardViewModel @Inject constructor(
             coordinator.setMode(mode)
         }
     }
+
+    fun startVisibleListener() {
+        viewModelScope.launch {
+            coordinator.setMode(ConnectionMode.VISIBLE_ONLY)
+            coordinator.onUiVisibilityChanged(true)
+        }
+    }
 }
 
 data class DashboardUiState(
