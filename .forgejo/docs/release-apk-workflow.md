@@ -29,9 +29,10 @@ will not create a skipped job, it will create no job at all.
 
 ## Runner Environment
 
-The release workflow must run on an x86_64 Forgejo runner. The workflow itself
-fails immediately when `RUNNER_ARCH` is not `X64`, before any Android setup
-starts.
+The release workflow stays on a single Forgejo job so that the same runner handles
+architecture detection and the actual build. Do not split architecture detection
+and release execution into separate jobs. Forgejo can schedule those jobs onto
+different runners, which makes any detection result unsafe for subsequent jobs.
 
 The job uses the local Forgejo runner label:
 
@@ -56,11 +57,11 @@ container:
 This is not Docker-in-Docker. The runner starts the job in an Ubuntu container on
 the host Docker daemon and attaches it to the runner-provided `ci-network`.
 
-Do not split architecture detection and release execution into separate jobs.
-Forgejo can schedule those jobs onto different runners, which makes any arch
-detection result unsafe for subsequent jobs. If release builds need to route to a
-specific machine class, do that with runner labels in runner configuration, not
-with a probe job inside this workflow.
+The workflow logs both `RUNNER_ARCH` and `dpkg --print-architecture` at the start
+of the job. When the container is `arm64`, the bootstrap step adds Ubuntu amd64
+package sources, installs the amd64 runtime loader and core runtime libraries,
+and creates `/lib64/ld-linux-x86-64.so.2` so the x86_64 `aapt2` binary from the
+Android SDK can start under the host's translation layer.
 
 Do not add Docker service containers, Docker socket mounts, or DinD setup unless
 the runner configuration changes.

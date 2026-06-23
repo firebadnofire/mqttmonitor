@@ -14,18 +14,13 @@ jobs:
       options: --network ci-network
 
     steps:
-      - name: Require x86_64 runner
+      - name: Report runner architecture
         shell: bash
         run: |
           set -euo pipefail
 
-          runner_arch="${RUNNER_ARCH:-unknown}"
-          echo "Runner architecture: ${runner_arch}"
-          if [ "$runner_arch" != "X64" ]; then
-            echo "Release builds currently require an x86_64 Forgejo runner." >&2
-            echo "This workflow must be routed to a dedicated x86_64 runner label before Android setup starts." >&2
-            exit 1
-          fi
+          echo "Runner architecture: ${RUNNER_ARCH:-unknown}"
+          echo "Container architecture: $(dpkg --print-architecture)"
 
       - name: Prepare APT and action runtime
         shell: bash
@@ -36,20 +31,45 @@ jobs:
           tee_cmd="tee"
           install_cmd="install"
           chmod_cmd="chmod"
+          mkdir_cmd="mkdir"
+          ln_cmd="ln"
           if command -v sudo >/dev/null 2>&1; then
             apt_get="sudo apt-get"
             tee_cmd="sudo tee"
             install_cmd="sudo install"
             chmod_cmd="sudo chmod"
+            mkdir_cmd="sudo mkdir"
+            ln_cmd="sudo ln"
           fi
+
+          container_arch="$(dpkg --print-architecture)"
 
           {
             echo 'Acquire::http::Proxy "http://apt-cacher-ng:3142";'
             echo 'Acquire::https::Proxy "http://apt-cacher-ng:3142";'
           } | $tee_cmd /etc/apt/apt.conf.d/01proxy >/dev/null
 
+          if [ "$container_arch" = "arm64" ]; then
+            dpkg --add-architecture amd64
+            cat <<'EOF' | $tee_cmd /etc/apt/sources.list.d/amd64.list >/dev/null
+deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy main universe
+deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-updates main universe
+deb [arch=amd64] http://archive.ubuntu.com/ubuntu jammy-security main universe
+EOF
+          fi
+
           $apt_get update
           $apt_get install -y --no-install-recommends ca-certificates curl git gnupg jq unzip
+
+          if [ "$container_arch" = "arm64" ]; then
+            $apt_get install -y --no-install-recommends \
+              libc6:amd64 \
+              libgcc-s1:amd64 \
+              libstdc++6:amd64 \
+              zlib1g:amd64
+            $mkdir_cmd -p /lib64
+            $ln_cmd -sf /lib/x86_64-linux-gnu/ld-linux-x86-64.so.2 /lib64/ld-linux-x86-64.so.2
+          fi
 
           needs_node=1
           if command -v node >/dev/null 2>&1; then
